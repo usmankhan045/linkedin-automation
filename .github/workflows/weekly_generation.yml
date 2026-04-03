@@ -14,8 +14,7 @@ env:
   SUPABASE_URL:                    ${{ secrets.SUPABASE_URL }}
   SUPABASE_SERVICE_ROLE_KEY:       ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
   SUPABASE_IMAGE_BUCKET:           ${{ secrets.SUPABASE_IMAGE_BUCKET }}
-  DISCORD_BOT_TOKEN:               ${{ secrets.DISCORD_BOT_TOKEN }}
-  DISCORD_CONFIRMATIONS_CHANNEL_ID: ${{ secrets.DISCORD_CONFIRMATIONS_CHANNEL_ID }}
+  DISCORD_WEBHOOK_CONFIRMATIONS:   ${{ secrets.DISCORD_WEBHOOK_CONFIRMATIONS }}
   APP_TIMEZONE:                    ${{ secrets.APP_TIMEZONE }}
   GROQ_MODEL:                      ${{ secrets.GROQ_MODEL }}
   SHEETS_TOPIC_BANK_TAB:           ${{ secrets.SHEETS_TOPIC_BANK_TAB }}
