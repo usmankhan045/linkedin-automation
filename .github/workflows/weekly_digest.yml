@@ -9,8 +9,7 @@ on:
 env:
   SUPABASE_URL:                    ${{ secrets.SUPABASE_URL }}
   SUPABASE_SERVICE_ROLE_KEY:       ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-  DISCORD_BOT_TOKEN:               ${{ secrets.DISCORD_BOT_TOKEN }}
-  DISCORD_DIGEST_CHANNEL_ID:       ${{ secrets.DISCORD_DIGEST_CHANNEL_ID }}
+  DISCORD_DIGEST_WEBHOOK_URL:      ${{ secrets.DISCORD_DIGEST_WEBHOOK_URL }}
   APP_TIMEZONE:                    ${{ secrets.APP_TIMEZONE }}
 
 jobs:
