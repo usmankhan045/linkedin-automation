@@ -1,0 +1,42 @@
+name: Weekly Digest
+
+on:
+  schedule:
+    - cron: '0 5 * * 0'   # Sunday 10:00 AM PKT (UTC+5 → 05:00 UTC)
+                           # Runs BEFORE weekly_generation (08:00 PKT / 03:00 UTC)
+  workflow_dispatch:
+
+env:
+  SUPABASE_URL:                    ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY:       ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  DISCORD_BOT_TOKEN:               ${{ secrets.DISCORD_BOT_TOKEN }}
+  DISCORD_DIGEST_CHANNEL_ID:       ${{ secrets.DISCORD_DIGEST_CHANNEL_ID }}
+  APP_TIMEZONE:                    ${{ secrets.APP_TIMEZONE }}
+
+jobs:
+  digest:
+    name: Send weekly analytics digest to Discord
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Send weekly digest
+        run: python tools/weekly_digest.py
+
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "Weekly digest failed."
+          echo "Common causes: Supabase unreachable, Discord token invalid."

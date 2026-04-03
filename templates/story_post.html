@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  :root {
+    --accent: #22C55E;
+    --bg: #0A0F0A;
+    --text: #FFFFFF;
+    --text-secondary: #86EFAC;
+  }
+
+  body {
+    width: 1080px;
+    height: 1350px;
+    background: var(--bg);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    overflow: hidden;
+  }
+
+  .card {
+    width: 1080px;
+    height: 1350px;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding: 70px 80px 150px;
+  }
+
+  /* Post number — top-right corner */
+  .post-number {
+    position: absolute;
+    top: 48px;
+    right: 60px;
+    color: var(--accent);
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  /* Category badge */
+  .badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #0A0F0A;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 10px 28px;
+    border-radius: 9999px;
+    align-self: center;
+    margin-bottom: 44px;
+    white-space: nowrap;
+  }
+
+  /* Headline with radial glow effect */
+  .headline-wrapper {
+    position: relative;
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  /* Green glow behind headline text */
+  .headline-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 110%;
+    height: 220%;
+    background: radial-gradient(ellipse at center, rgba(34, 197, 94, 0.18) 0%, rgba(34, 197, 94, 0.06) 45%, transparent 72%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .headline {
+    position: relative;
+    z-index: 1;
+    color: var(--text);
+    font-size: 72px;
+    font-weight: 700;
+    line-height: 1.1;
+    word-break: break-word;
+  }
+
+  /* Green divider */
+  .divider {
+    height: 4px;
+    background: var(--accent);
+    border-radius: 2px;
+    margin-bottom: 36px;
+    flex-shrink: 0;
+  }
+
+  /* Bullet list */
+  .bullets {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    min-height: 0;
+  }
+
+  .bullet {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+  }
+
+  .bullet-num {
+    color: var(--accent);
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1;
+    min-width: 72px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  .bullet-text {
+    color: var(--text);
+    font-size: 26px;
+    font-weight: 400;
+    line-height: 1.4;
+    padding-top: 6px;
+  }
+
+  /* Footer — absolute, always at bottom */
+  .footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 24px 80px 44px;
+    text-align: center;
+    border-top: 1px solid rgba(134, 239, 172, 0.2);
+  }
+
+  .footer-name {
+    color: var(--text);
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .footer-title {
+    color: var(--text-secondary);
+    font-size: 22px;
+    font-weight: 400;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+
+  <div class="post-number">Post #{{POST_NUMBER}}</div>
+
+  <div class="badge">{{CATEGORY_LABEL}}</div>
+
+  <div class="headline-wrapper">
+    <div class="headline-glow"></div>
+    <h1 class="headline">{{HEADLINE}}</h1>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="bullets">
+    <div class="bullet">
+      <span class="bullet-num">01</span>
+      <span class="bullet-text">{{BULLET_1}}</span>
+    </div>
+    <div class="bullet">
+      <span class="bullet-num">02</span>
+      <span class="bullet-text">{{BULLET_2}}</span>
+    </div>
+    <div class="bullet">
+      <span class="bullet-num">03</span>
+      <span class="bullet-text">{{BULLET_3}}</span>
+    </div>
+    <div class="bullet" style="{{BULLET_4_STYLE}}">
+      <span class="bullet-num">04</span>
+      <span class="bullet-text">{{BULLET_4}}</span>
+    </div>
+    <div class="bullet" style="{{BULLET_5_STYLE}}">
+      <span class="bullet-num">05</span>
+      <span class="bullet-text">{{BULLET_5}}</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-name">{{NAME}}</div>
+    <div class="footer-title">{{TITLE}}</div>
+  </div>
+
+</div>
+</body>
+</html>

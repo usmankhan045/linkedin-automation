@@ -1,0 +1,55 @@
+name: Weekly Post Generation
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'   # Sunday 8:00 AM PKT (UTC+5 → 03:00 UTC)
+  workflow_dispatch:        # Manual trigger for testing
+
+env:
+  GROQ_API_KEY:                    ${{ secrets.GROQ_API_KEY }}
+  OPENAI_API_KEY:                  ${{ secrets.OPENAI_API_KEY }}
+  ANTHROPIC_API_KEY:               ${{ secrets.ANTHROPIC_API_KEY }}
+  GOOGLE_SHEETS_SPREADSHEET_ID:    ${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}
+  GOOGLE_SERVICE_ACCOUNT_JSON:     ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+  SUPABASE_URL:                    ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY:       ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  SUPABASE_IMAGE_BUCKET:           ${{ secrets.SUPABASE_IMAGE_BUCKET }}
+  DISCORD_BOT_TOKEN:               ${{ secrets.DISCORD_BOT_TOKEN }}
+  DISCORD_CONFIRMATIONS_CHANNEL_ID: ${{ secrets.DISCORD_CONFIRMATIONS_CHANNEL_ID }}
+  APP_TIMEZONE:                    ${{ secrets.APP_TIMEZONE }}
+  GROQ_MODEL:                      ${{ secrets.GROQ_MODEL }}
+  SHEETS_TOPIC_BANK_TAB:           ${{ secrets.SHEETS_TOPIC_BANK_TAB }}
+
+jobs:
+  generate:
+    name: Generate 5 posts for the week ahead
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Generate posts (Groq → Supabase → Sheets)
+        run: python tools/generate_posts.py
+
+      - name: Generate images (DALL-E → Supabase Storage → Sheets)
+        run: python tools/generate_images.py
+
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "Weekly generation failed. Check logs above."
+          echo "Common causes: Groq rate limit, Sheets API error, empty Topic Bank."

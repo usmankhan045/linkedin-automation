@@ -1,0 +1,13 @@
+groq>=0.9.0
+openai>=1.30.0
+anthropic>=0.25.0
+supabase>=2.3.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+discord.py>=2.3.2
+google-auth>=2.29.0
+google-auth-httplib2>=0.2.0
+google-api-python-client>=2.126.0
+Pillow>=10.3.0
+pytz>=2024.1
+playwright>=1.44.0

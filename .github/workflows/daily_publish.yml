@@ -1,0 +1,50 @@
+name: Daily LinkedIn Publish
+
+on:
+  schedule:
+    - cron: '0 7 * * 1-5'  # Mon–Fri 12:00 PM PKT (UTC+5 → 07:00 UTC)
+  workflow_dispatch:         # Manual trigger for testing/emergency publish
+
+env:
+  GROQ_API_KEY:                    ${{ secrets.GROQ_API_KEY }}
+  LINKEDIN_CLIENT_ID:              ${{ secrets.LINKEDIN_CLIENT_ID }}
+  LINKEDIN_CLIENT_SECRET:          ${{ secrets.LINKEDIN_CLIENT_SECRET }}
+  LINKEDIN_ACCESS_TOKEN:           ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+  LINKEDIN_REFRESH_TOKEN:          ${{ secrets.LINKEDIN_REFRESH_TOKEN }}
+  LINKEDIN_PERSON_URN:             ${{ secrets.LINKEDIN_PERSON_URN }}
+  GOOGLE_SHEETS_SPREADSHEET_ID:    ${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}
+  GOOGLE_SERVICE_ACCOUNT_JSON:     ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+  SUPABASE_URL:                    ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY:       ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  DISCORD_BOT_TOKEN:               ${{ secrets.DISCORD_BOT_TOKEN }}
+  DISCORD_CONFIRMATIONS_CHANNEL_ID: ${{ secrets.DISCORD_CONFIRMATIONS_CHANNEL_ID }}
+  APP_TIMEZONE:                    ${{ secrets.APP_TIMEZONE }}
+  SHEETS_TOPIC_BANK_TAB:           ${{ secrets.SHEETS_TOPIC_BANK_TAB }}
+
+jobs:
+  publish:
+    name: Publish today's approved post to LinkedIn
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Publish post
+        run: python tools/publish_post.py
+
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "Daily publish failed."
+          echo "Common causes: no approved post in Sheets, LinkedIn token expired, missing image."
