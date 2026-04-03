@@ -18,7 +18,7 @@ env:
   SUPABASE_SERVICE_ROLE_KEY:       ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
   DISCORD_WEBHOOK_CONFIRMATIONS:   ${{ secrets.DISCORD_WEBHOOK_CONFIRMATIONS }}
   APP_TIMEZONE:                    ${{ secrets.APP_TIMEZONE }}
-  SHEETS_TOPIC_BANK_TAB:           ${{ secrets.SHEETS_TOPIC_BANK_TAB }}
+  SHEETS_TOPIC_BANK_TAB:           "Topic Bank"
 
 jobs:
   publish:

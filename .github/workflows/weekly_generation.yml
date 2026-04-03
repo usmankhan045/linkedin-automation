@@ -17,7 +17,7 @@ env:
   DISCORD_WEBHOOK_CONFIRMATIONS:   ${{ secrets.DISCORD_WEBHOOK_CONFIRMATIONS }}
   APP_TIMEZONE:                    ${{ secrets.APP_TIMEZONE }}
   GROQ_MODEL:                      ${{ secrets.GROQ_MODEL }}
-  SHEETS_TOPIC_BANK_TAB:           ${{ secrets.SHEETS_TOPIC_BANK_TAB }}
+  SHEETS_TOPIC_BANK_TAB:           "Topic Bank"
 
 jobs:
   generate:
