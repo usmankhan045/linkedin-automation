@@ -59,6 +59,19 @@ def get_sheet_client() -> gspread.Client:
     return _client
 
 
+def _open_worksheet(spreadsheet: gspread.Spreadsheet, tab_name: str) -> gspread.Worksheet:
+    """Open a worksheet by name, raising a clear RuntimeError if not found."""
+    try:
+        return spreadsheet.worksheet(tab_name)
+    except gspread.exceptions.WorksheetNotFound as e:
+        available_tabs = [ws.title for ws in spreadsheet.worksheets()]
+        raise RuntimeError(
+            f"Worksheet '{tab_name}' not found in spreadsheet '{spreadsheet.id}'. "
+            f"Available tabs: {available_tabs}. "
+            "Fix the relevant SHEETS_* secret or create the missing tab."
+        ) from e
+
+
 def _parse_rows(ws: gspread.Worksheet) -> list:
     """
     Read all rows from a worksheet and return a list of dicts.
@@ -88,7 +101,7 @@ def get_topic_bank(sheet_id: str) -> list:
 
     Used by generate_posts.py to find topics for the coming week.
     """
-    ws = get_sheet_client().open_by_key(sheet_id).worksheet(TOPIC_BANK_TAB)
+    ws = _open_worksheet(get_sheet_client().open_by_key(sheet_id), TOPIC_BANK_TAB)
     all_rows = _parse_rows(ws)
     return [r for r in all_rows if r.get('status') == 'pending']
 
@@ -101,7 +114,7 @@ def get_todays_post(sheet_id: str) -> Optional[dict]:
     so callers can pass it directly to update_row_status().
     """
     today_str = datetime.now(PKT).date().strftime('%Y-%m-%d')
-    ws = get_sheet_client().open_by_key(sheet_id).worksheet(TOPIC_BANK_TAB)
+    ws = _open_worksheet(get_sheet_client().open_by_key(sheet_id), TOPIC_BANK_TAB)
     all_rows = _parse_rows(ws)
     for row in all_rows:
         if row.get('status') == 'approved' and row.get('scheduled_date') == today_str:
@@ -123,7 +136,7 @@ def update_row_status(sheet_id: str, row_index: int, updates: dict) -> None:
     Unknown column names are skipped with a warning. Uses batch update to minimise
     API round-trips.
     """
-    ws = get_sheet_client().open_by_key(sheet_id).worksheet(TOPIC_BANK_TAB)
+    ws = _open_worksheet(get_sheet_client().open_by_key(sheet_id), TOPIC_BANK_TAB)
     headers = ws.row_values(1)
 
     cell_list = []
@@ -145,7 +158,7 @@ def append_content_backlog(sheet_id: str, data: dict) -> None:
     Expected keys in data: comment_text, commenter_name, original_post_topic, suggested_angle.
     The 'date' and 'used' columns are filled automatically.
     """
-    ws = get_sheet_client().open_by_key(sheet_id).worksheet(CONTENT_BACKLOG_TAB)
+    ws = _open_worksheet(get_sheet_client().open_by_key(sheet_id), CONTENT_BACKLOG_TAB)
     today_str = datetime.now(PKT).strftime('%Y-%m-%d')
     row = [
         data.get('comment_text', ''),
@@ -181,7 +194,7 @@ def get_week_schedule(sheet_id: str) -> list:
         for i in range(5)
     }
 
-    ws = get_sheet_client().open_by_key(sheet_id).worksheet(TOPIC_BANK_TAB)
+    ws = _open_worksheet(get_sheet_client().open_by_key(sheet_id), TOPIC_BANK_TAB)
     all_rows = _parse_rows(ws)
     return [r for r in all_rows if r.get('scheduled_date') in week_dates]
 
