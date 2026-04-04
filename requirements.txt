@@ -12,3 +12,4 @@ google-api-python-client>=2.126.0
 Pillow>=10.3.0
 pytz>=2024.1
 playwright>=1.44.0
+beautifulsoup4>=4.12.0

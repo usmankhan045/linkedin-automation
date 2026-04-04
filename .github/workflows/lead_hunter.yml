@@ -1,0 +1,42 @@
+name: Lead Hunter
+
+on:
+  schedule:
+    - cron: '0 4 * * 1-5'   # 9:00 AM PKT Mon-Fri (4am UTC)
+    - cron: '0 9 * * 1-5'   # 2:00 PM PKT Mon-Fri (9am UTC)
+  workflow_dispatch:
+
+env:
+  GROQ_API_KEY:              ${{ secrets.GROQ_API_KEY }}
+  GROQ_MODEL:                ${{ secrets.GROQ_MODEL }}
+  SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  DISCORD_LEAD_HUNTER_WEBHOOK_URL: ${{ secrets.DISCORD_LEAD_HUNTER_WEBHOOK_URL }}
+
+jobs:
+  hunt:
+    name: Search LinkedIn for leads
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run lead hunter
+        run: python tools/search_leads.py
+
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "Lead hunter failed."
+          echo "Common causes: Google blocking requests, Groq unavailable, Supabase connection error."

@@ -121,3 +121,22 @@ CREATE TABLE IF NOT EXISTS stories (
 );
 
 CREATE INDEX IF NOT EXISTS idx_stories_status ON stories(status);
+
+
+-- ── leads_seen ────────────────────────────────────────────────────────────────
+-- Deduplication table for search_leads.py
+-- Every LinkedIn post URL found is recorded here to prevent duplicate alerts
+
+CREATE TABLE IF NOT EXISTS leads_seen (
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_url        TEXT        UNIQUE NOT NULL,
+    poster_name     TEXT,
+    post_snippet    TEXT,
+    search_query    TEXT,
+    category        TEXT        CHECK (category IN ('asking_for_help', 'describing_problem')),
+    discord_alerted BOOLEAN     DEFAULT FALSE,
+    found_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_leads_seen_url ON leads_seen(post_url);
+CREATE INDEX IF NOT EXISTS idx_leads_seen_found_at ON leads_seen(found_at);
