@@ -42,25 +42,45 @@ POSTED_LIMIT = '24h'
 
 SEARCH_QUERIES = [
     {
-        "query": '("need help" OR "looking for help" OR "hire someone") AND ("automate" OR "automation" OR "AI agent") AND ("business" OR "operations" OR "workflow")',
+        "query": "need help automate business workflow",
         "category": "asking_for_help",
-        "label": "Actively seeking automation help"
+        "label": "Seeking automation help"
     },
     {
-        "query": '("can anyone recommend" OR "does anyone know" OR "looking for a tool") AND ("automate" OR "automation" OR "AI") AND ("process" OR "workflow" OR "task")',
+        "query": "looking for automation developer hire",
         "category": "asking_for_help",
-        "label": "Asking for tool/service recommendations"
+        "label": "Looking to hire automation"
     },
     {
-        "query": '("wasting time" OR "takes hours" OR "doing manually" OR "still using spreadsheets") AND ("every day" OR "every week" OR "team") AND ("wish" OR "need" OR "want")',
-        "category": "describing_problem",
-        "label": "Describing manual time waste"
+        "query": "recommend automation tool business process",
+        "category": "asking_for_help",
+        "label": "Asking for tool recommendation"
     },
     {
-        "query": '("tired of" OR "frustrated with" OR "impossible to scale") AND ("manual" OR "repetitive" OR "copy paste" OR "data entry") AND ("business" OR "company" OR "team")',
+        "query": "need AI agent automate operations",
+        "category": "asking_for_help",
+        "label": "Seeking AI agent help"
+    },
+    {
+        "query": "wasting hours manual data entry every week",
         "category": "describing_problem",
-        "label": "Expressing frustration with manual work"
-    }
+        "label": "Manual data entry pain"
+    },
+    {
+        "query": "still using spreadsheets everything manual",
+        "category": "describing_problem",
+        "label": "Still manual spreadsheet work"
+    },
+    {
+        "query": "team spends too much time repetitive tasks",
+        "category": "describing_problem",
+        "label": "Repetitive task frustration"
+    },
+    {
+        "query": "tired of copy paste manual work business",
+        "category": "describing_problem",
+        "label": "Copy paste frustration"
+    },
 ]
 
 
@@ -103,9 +123,9 @@ def run_apify_search(query_obj: dict) -> list[dict]:
     url, content, poster_name, poster_headline, poster_profile_url, category, label
     """
     payload = {
-        "queries": [query_obj["query"]],
+        "searchQueries": [query_obj["query"]],
         "maxPosts": MAX_POSTS_PER_QUERY,
-        "postedLimit": POSTED_LIMIT,
+        "postedLimit": "24h",
         "sortBy": "date_posted",
         "scrapeReactions": False,
         "scrapeComments": False,
@@ -119,7 +139,7 @@ def run_apify_search(query_obj: dict) -> list[dict]:
             APIFY_ACTOR_URL,
             json=payload,
             params=params,
-            timeout=120,  # Apify runs can take up to 2 minutes
+            timeout=180,  # Apify runs can take up to 2 minutes
         )
 
         if resp.status_code == 402:
@@ -129,7 +149,7 @@ def run_apify_search(query_obj: dict) -> list[dict]:
         if resp.status_code == 429:
             print(f'[{datetime.now()}] [WARN] Apify rate limited. Waiting 60s...')
             time.sleep(60)
-            resp = requests.post(APIFY_ACTOR_URL, json=payload, params=params, timeout=120)
+            resp = requests.post(APIFY_ACTOR_URL, json=payload, params=params, timeout=180)
 
         resp.raise_for_status()
         raw_posts = resp.json()
