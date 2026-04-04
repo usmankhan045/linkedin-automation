@@ -1,221 +1,375 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=1080">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
-<style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1080">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-  :root {
-    --accent: #22C55E;
-    --bg: #0A0F0A;
-    --text: #FFFFFF;
-    --text-secondary: #86EFAC;
-  }
+    body {
+      width: 1080px;
+      height: 1350px;
+      overflow: hidden;
+      background: #1C1C1C;
+      font-family: 'DM Sans', system-ui, sans-serif;
+    }
 
-  body {
-    width: 1080px;
-    height: 1350px;
-    background: var(--bg);
-    font-family: 'Space Grotesk', system-ui, sans-serif;
-    overflow: hidden;
-  }
+    .canvas {
+      width: 1080px;
+      height: 1350px;
+      position: relative;
+      overflow: hidden;
+      background: #1C1C1C;
+    }
 
-  .card {
-    width: 1080px;
-    height: 1350px;
-    background: var(--bg);
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    padding: 70px 80px 150px;
-  }
+    /* City skyline SVG — behind everything */
+    .city-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1080px;
+      height: 1350px;
+      z-index: 0;
+    }
 
-  /* Decorative background circle — top-right */
-  .deco-bg {
-    position: absolute;
-    top: -120px;
-    right: -120px;
-    width: 600px;
-    height: 600px;
-    border-radius: 50%;
-    background: radial-gradient(circle at center, rgba(34, 197, 94, 0.08) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
-  }
+    /* Main content stack */
+    .content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
 
-  /* Category badge */
-  .badge {
-    display: inline-block;
-    background: var(--accent);
-    color: #0A0F0A;
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    padding: 12px 32px;
-    border-radius: 9999px;
-    align-self: center;
-    margin-bottom: 44px;
-    white-space: nowrap;
-    position: relative;
-    z-index: 1;
-  }
+    /* ── Hanging card ── */
+    .card-wrapper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      padding-top: 40px;
+    }
 
-  /* Headline with radial glow effect */
-  .headline-wrapper {
-    position: relative;
-    text-align: center;
-    margin-bottom: 36px;
-    z-index: 1;
-  }
+    .string {
+      position: absolute;
+      top: 0;
+      width: 6px;
+      height: 80px;
+      background: #e8e8e8;
+      border-radius: 3px;
+      z-index: 3;
+    }
+    .string-left  { left: 220px; }
+    .string-right { right: 220px; }
 
-  /* Enhanced green glow behind headline text */
-  .headline-glow {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 110%;
-    height: 220%;
-    background: radial-gradient(ellipse at center, rgba(34, 197, 94, 0.24) 0%, rgba(34, 197, 94, 0.10) 45%, transparent 72%);
-    pointer-events: none;
-    z-index: 0;
-  }
+    .pin {
+      position: absolute;
+      top: 72px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #2a2a2a;
+      border: 4px solid #555;
+      z-index: 4;
+    }
+    .pin-left  { left: 207px; }
+    .pin-right { right: 207px; }
 
-  .headline {
-    position: relative;
-    z-index: 1;
-    color: var(--text);
-    font-size: clamp(52px, 6vw, 72px);
-    font-weight: 700;
-    line-height: 1.1;
-    word-break: break-word;
-  }
+    /* GREEN card variant */
+    .yellow-card {
+      background: #2ECC71;
+      width: 780px;
+      padding: 36px 50px 40px;
+      border-radius: 4px;
+      text-align: center;
+      position: relative;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      margin-top: 40px;
+      transform: perspective(800px) rotateX(1deg);
+    }
 
-  /* Green divider */
-  .divider {
-    height: 4px;
-    background: var(--accent);
-    border-radius: 2px;
-    margin-bottom: 36px;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 1;
-  }
+    .daily-post-badge {
+      display: inline-block;
+      background: #E8833A;
+      color: #1a1a1a;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 8px 28px;
+      border-radius: 50px;
+      margin-bottom: 16px;
+    }
 
-  /* Bullet list */
-  .bullets {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    gap: 48px;
-    min-height: 0;
-    position: relative;
-    z-index: 1;
-  }
+    .build-log-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 110px;
+      color: #1a1a1a;
+      letter-spacing: 0.05em;
+      line-height: 0.9;
+    }
 
-  .bullet {
-    display: flex;
-    align-items: flex-start;
-    gap: 24px;
-    border-left: 4px solid var(--accent);
-    padding-left: 20px;
-    margin-bottom: 16px;
-  }
+    .card-subtitle {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 20px;
+      font-weight: 400;
+      color: #1a3a1a;
+      margin-top: 8px;
+    }
 
-  .bullet-num {
-    color: var(--accent);
-    font-size: 48px;
-    font-weight: 700;
-    line-height: 1;
-    min-width: 72px;
-    flex-shrink: 0;
-    padding-top: 2px;
-  }
+    /* ── Headline ── */
+    .headline {
+      font-family: 'Oswald', sans-serif;
+      font-weight: 600;
+      font-size: 58px;
+      color: #FFFFFF;
+      text-align: center;
+      padding: 50px 80px 0;
+      line-height: 1.1;
+      width: 100%;
+    }
 
-  .bullet-text {
-    color: var(--text);
-    font-size: 28px;
-    font-weight: 400;
-    line-height: 1.4;
-    padding-top: 6px;
-  }
+    /* ── Bullets ── */
+    .bullets {
+      width: 100%;
+      padding: 40px 70px 0;
+    }
 
-  /* Footer — absolute, always at bottom */
-  .footer {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 24px 80px 44px;
-    text-align: center;
-    border-top: 1px solid rgba(134, 239, 172, 0.2);
-    z-index: 1;
-  }
+    .bullet {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 32px;
+    }
 
-  .footer-name {
-    color: var(--text);
-    font-size: 28px;
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
+    .num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 52px;
+      color: #F0A500;
+      margin-right: 24px;
+      min-width: 60px;
+      flex-shrink: 0;
+      line-height: 1;
+    }
 
-  .footer-title {
-    color: var(--text-secondary);
-    font-size: 22px;
-    font-weight: 400;
-  }
-</style>
+    .text {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 24px;
+      color: #FFFFFF;
+      line-height: 1.5;
+      max-width: 720px;
+      padding-top: 8px;
+    }
+
+    /* ── Decorative elements ── */
+    .divider-line {
+      position: absolute;
+      bottom: 230px;
+      left: 110px;
+      width: 860px;
+      height: 1px;
+      background: #F0A500;
+      z-index: 2;
+    }
+
+    .dot-grid {
+      position: absolute;
+      bottom: 140px;
+      right: 70px;
+      display: grid;
+      grid-template-columns: repeat(6, 6px);
+      grid-template-rows: repeat(3, 6px);
+      gap: 10px;
+      opacity: 0.7;
+      z-index: 2;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #F0A500;
+    }
+
+    .diamond-icon {
+      position: absolute;
+      bottom: 30px;
+      right: 60px;
+      color: #888888;
+      font-size: 32px;
+      line-height: 1;
+      z-index: 2;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      text-align: center;
+      padding: 20px 80px 44px;
+      z-index: 2;
+    }
+
+    .footer-name {
+      font-family: 'Oswald', sans-serif;
+      font-weight: 700;
+      font-size: 32px;
+      color: #FFFFFF;
+      margin-bottom: 4px;
+    }
+
+    .footer-title {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 400;
+      font-size: 20px;
+      color: #999999;
+    }
+
+    .footer-postnum {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      color: #666666;
+      margin-top: 4px;
+    }
+  </style>
 </head>
 <body>
-<div class="card">
+<div class="canvas">
 
-  <div class="deco-bg"></div>
+  <!-- City skyline SVG background -->
+  <svg class="city-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350">
+    <defs>
+      <linearGradient id="bldFade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1C1C1C" stop-opacity="1"/>
+        <stop offset="45%" stop-color="#1C1C1C" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <ellipse cx="200" cy="1100" rx="280" ry="160" fill="rgba(46,204,113,0.04)"/>
+    <ellipse cx="900" cy="300"  rx="220" ry="160" fill="rgba(46,204,113,0.025)"/>
+    <g fill="#252525" opacity="0.45">
+      <rect x="0"    y="1240" width="65"  height="110"/>
+      <rect x="75"   y="1175" width="50"  height="175"/>
+      <rect x="140"  y="1215" width="55"  height="135"/>
+      <rect x="205"  y="1110" width="45"  height="240"/>
+      <rect x="260"  y="1200" width="70"  height="150"/>
+      <rect x="340"  y="1145" width="50"  height="205"/>
+      <rect x="400"  y="1220" width="75"  height="130"/>
+      <rect x="485"  y="1095" width="45"  height="255"/>
+      <rect x="540"  y="1180" width="60"  height="170"/>
+      <rect x="615"  y="1125" width="50"  height="225"/>
+      <rect x="678"  y="1200" width="70"  height="150"/>
+      <rect x="758"  y="1155" width="50"  height="195"/>
+      <rect x="820"  y="1210" width="55"  height="140"/>
+      <rect x="885"  y="1170" width="60"  height="180"/>
+      <rect x="958"  y="1215" width="55"  height="135"/>
+      <rect x="1022" y="1180" width="58"  height="170"/>
+    </g>
+    <g fill="#2d2d2d" opacity="0.6">
+      <rect x="0"    y="1205" width="88"  height="145"/>
+      <rect x="93"   y="1125" width="105" height="225"/>
+      <rect x="137"  y="1095" width="9"   height="30"/>
+      <rect x="208"  y="1180" width="52"  height="170"/>
+      <rect x="270"  y="1060" width="118" height="290"/>
+      <rect x="318"  y="1030" width="8"   height="30"/>
+      <rect x="398"  y="1155" width="78"  height="195"/>
+      <rect x="486"  y="1125" width="60"  height="225"/>
+      <rect x="556"  y="1195" width="98"  height="155"/>
+      <rect x="664"  y="1048" width="74"  height="302"/>
+      <rect x="693"  y="1018" width="8"   height="30"/>
+      <rect x="748"  y="1135" width="92"  height="215"/>
+      <rect x="850"  y="1165" width="78"  height="185"/>
+      <rect x="938"  y="1135" width="92"  height="215"/>
+      <rect x="996"  y="1185" width="84"  height="165"/>
+    </g>
+    <g fill="#2ECC71" opacity="0.06">
+      <rect x="278" y="1082" width="8" height="5"/>
+      <rect x="294" y="1082" width="8" height="5"/>
+      <rect x="310" y="1082" width="8" height="5"/>
+      <rect x="278" y="1102" width="8" height="5"/>
+      <rect x="294" y="1102" width="8" height="5"/>
+      <rect x="310" y="1102" width="8" height="5"/>
+      <rect x="672" y="1068" width="8" height="5"/>
+      <rect x="688" y="1068" width="8" height="5"/>
+      <rect x="704" y="1068" width="8" height="5"/>
+      <rect x="672" y="1088" width="8" height="5"/>
+      <rect x="688" y="1088" width="8" height="5"/>
+      <rect x="704" y="1088" width="8" height="5"/>
+    </g>
+    <rect x="0" y="900" width="1080" height="450" fill="url(#bldFade)"/>
+  </svg>
 
-  <div class="badge">{{CATEGORY_LABEL}}</div>
+  <!-- Main content -->
+  <div class="content">
 
-  <div class="headline-wrapper">
-    <div class="headline-glow"></div>
+    <!-- Hanging card -->
+    <div class="card-wrapper">
+      <div class="string string-left"></div>
+      <div class="string string-right"></div>
+      <div class="pin pin-left"></div>
+      <div class="pin pin-right"></div>
+      <div class="yellow-card">
+        <div class="daily-post-badge">DAILY POST</div>
+        <div class="build-log-text">{{CATEGORY_LABEL}}</div>
+        <div class="card-subtitle">Insights &amp; Progress from the Engineering Desk</div>
+      </div>
+    </div>
+
+    <!-- Headline -->
     <h1 class="headline">{{HEADLINE}}</h1>
+
+    <!-- Bullet points -->
+    <div class="bullets">
+      <div class="bullet">
+        <span class="num">01</span>
+        <span class="text">{{BULLET_1}}</span>
+      </div>
+      <div class="bullet">
+        <span class="num">02</span>
+        <span class="text">{{BULLET_2}}</span>
+      </div>
+      <div class="bullet">
+        <span class="num">03</span>
+        <span class="text">{{BULLET_3}}</span>
+      </div>
+      <div class="bullet" style="{{BULLET_4_STYLE}}">
+        <span class="num">04</span>
+        <span class="text">{{BULLET_4}}</span>
+      </div>
+      <div class="bullet" style="{{BULLET_5_STYLE}}">
+        <span class="num">05</span>
+        <span class="text">{{BULLET_5}}</span>
+      </div>
+    </div>
+
   </div>
 
-  <div class="divider"></div>
+  <!-- Orange divider line -->
+  <div class="divider-line"></div>
 
-  <div class="bullets">
-    <div class="bullet">
-      <span class="bullet-num">01</span>
-      <span class="bullet-text">{{BULLET_1}}</span>
-    </div>
-    <div class="bullet">
-      <span class="bullet-num">02</span>
-      <span class="bullet-text">{{BULLET_2}}</span>
-    </div>
-    <div class="bullet">
-      <span class="bullet-num">03</span>
-      <span class="bullet-text">{{BULLET_3}}</span>
-    </div>
-    <div class="bullet" style="{{BULLET_4_STYLE}}">
-      <span class="bullet-num">04</span>
-      <span class="bullet-text">{{BULLET_4}}</span>
-    </div>
-    <div class="bullet" style="{{BULLET_5_STYLE}}">
-      <span class="bullet-num">05</span>
-      <span class="bullet-text">{{BULLET_5}}</span>
-    </div>
+  <!-- Dot grid 3×6 -->
+  <div class="dot-grid">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
   </div>
 
+  <!-- Diamond accent -->
+  <div class="diamond-icon">&#9670;</div>
+
+  <!-- Footer -->
   <div class="footer">
-    <div class="footer-name">Muhammad Usman · Post #{{POST_NUMBER}}</div>
+    <div class="footer-name">Muhammad Usman</div>
     <div class="footer-title">AI Automation Engineer</div>
+    <div class="footer-postnum">Post #{{POST_NUMBER}}</div>
   </div>
 
 </div>

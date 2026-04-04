@@ -1,9 +1,9 @@
 """
 search_leads.py — Lead hunter for AI automation opportunities on LinkedIn.
 
-Runs 16 targeted Google searches (8 per category) to find LinkedIn posts from
-business owners either asking for automation/AI help or describing problems that
-automation could solve.
+Runs 4 targeted Boolean searches via the Apify LinkedIn Post Search Scraper
+to find LinkedIn posts from business owners either asking for automation/AI
+help or describing problems that automation could solve.
 
 For each new lead found (not yet in leads_seen):
   1. Calls Groq once to classify quality (HIGH/MEDIUM/LOW) and generate a
@@ -16,29 +16,52 @@ Runs twice daily Mon–Fri via lead_hunter.yml.
 Error philosophy: best-effort, never crash the GitHub Actions run.
 
 Called by: .github/workflows/lead_hunter.yml
-Env vars: GROQ_API_KEY, GROQ_MODEL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
-          DISCORD_LEADS_WEBHOOK_URL
+Env vars: APIFY_API_TOKEN, GROQ_API_KEY, GROQ_MODEL, SUPABASE_URL,
+          SUPABASE_SERVICE_ROLE_KEY, DISCORD_LEADS_WEBHOOK_URL
 """
 
 import os
 import sys
 import json
 import time
-from datetime import datetime, timedelta
-from urllib.parse import urlencode
+from datetime import datetime, timezone
 
 import requests
-from bs4 import BeautifulSoup
 from groq import Groq
-from supabase import create_client
+from supabase import create_client, Client
 from dotenv import load_dotenv
 
 load_dotenv()
 
+APIFY_API_TOKEN = os.environ['APIFY_API_TOKEN']
+APIFY_ACTOR_URL = 'https://api.apify.com/v2/acts/harvestapi~linkedin-post-search/run-sync-get-dataset-items'
 GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
 DISCORD_LEADS_WEBHOOK = os.getenv('DISCORD_LEAD_HUNTER_WEBHOOK_URL', '')
+MAX_POSTS_PER_QUERY = 5
+POSTED_LIMIT = '24h'
 
-DISCORD_MAX_LEN = 2000
+SEARCH_QUERIES = [
+    {
+        "query": '("need help" OR "looking for help" OR "hire someone") AND ("automate" OR "automation" OR "AI agent") AND ("business" OR "operations" OR "workflow")',
+        "category": "asking_for_help",
+        "label": "Actively seeking automation help"
+    },
+    {
+        "query": '("can anyone recommend" OR "does anyone know" OR "looking for a tool") AND ("automate" OR "automation" OR "AI") AND ("process" OR "workflow" OR "task")',
+        "category": "asking_for_help",
+        "label": "Asking for tool/service recommendations"
+    },
+    {
+        "query": '("wasting time" OR "takes hours" OR "doing manually" OR "still using spreadsheets") AND ("every day" OR "every week" OR "team") AND ("wish" OR "need" OR "want")',
+        "category": "describing_problem",
+        "label": "Describing manual time waste"
+    },
+    {
+        "query": '("tired of" OR "frustrated with" OR "impossible to scale") AND ("manual" OR "repetitive" OR "copy paste" OR "data entry") AND ("business" OR "company" OR "team")',
+        "category": "describing_problem",
+        "label": "Expressing frustration with manual work"
+    }
+]
 
 
 # ── Supabase ───────────────────────────────────────────────────────────────────
@@ -71,142 +94,126 @@ def mark_as_seen(supabase_client, url: str, poster_name: str, snippet: str, quer
         print(f'[WARN] Failed to mark lead as seen: {e}')
 
 
-# ── Google Search ──────────────────────────────────────────────────────────────
+# ── Apify Search ───────────────────────────────────────────────────────────────
 
-def get_yesterday_date() -> str:
-    """Return yesterday's date in YYYY-MM-DD format for Google date filter."""
-    return (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-
-
-def google_search(query: str, num_results: int = 5) -> list[dict]:
+def run_apify_search(query_obj: dict) -> list[dict]:
     """
-    Search Google using a scraping approach.
-    Returns list of dicts with: url, title, snippet, search_query.
-    Returns [] on failure — never raises.
+    Run one Apify LinkedIn Post Search actor call.
+    Returns list of normalized post dicts with keys:
+    url, content, poster_name, poster_headline, poster_profile_url, category, label
     """
-    params = {
-        'q': query + ' after:' + get_yesterday_date(),
-        'num': num_results,
-        'hl': 'en',
-        'gl': 'us',
+    payload = {
+        "queries": [query_obj["query"]],
+        "maxPosts": MAX_POSTS_PER_QUERY,
+        "postedLimit": POSTED_LIMIT,
+        "sortBy": "date_posted",
+        "scrapeReactions": False,
+        "scrapeComments": False,
     }
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate',
-        'Connection': 'keep-alive',
-    }
-
-    url = 'https://www.google.com/search?' + urlencode(params)
+    params = {"token": APIFY_API_TOKEN}
 
     try:
-        resp = requests.get(url, headers=headers, timeout=15)
+        print(f'[{datetime.now()}] Running Apify query: {query_obj["label"]}')
+        resp = requests.post(
+            APIFY_ACTOR_URL,
+            json=payload,
+            params=params,
+            timeout=120,  # Apify runs can take up to 2 minutes
+        )
+
+        if resp.status_code == 402:
+            print(f'[{datetime.now()}] [WARN] Apify credit limit reached. Stopping all queries.')
+            return []
+
         if resp.status_code == 429:
-            print(f'[WARN] Google rate limited. Waiting 60s...')
+            print(f'[{datetime.now()}] [WARN] Apify rate limited. Waiting 60s...')
             time.sleep(60)
-            resp = requests.get(url, headers=headers, timeout=15)
-            if resp.status_code == 429:
-                print(f'[WARN] Google still rate limited after retry. Skipping remaining queries for this run.')
-                return []
+            resp = requests.post(APIFY_ACTOR_URL, json=payload, params=params, timeout=120)
+
         resp.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        print(f'[WARN] Google HTTP error for query "{query[:60]}": {e}')
-        return []
-    except Exception as e:
-        print(f'[WARN] Google search failed for query "{query[:60]}": {e}')
-        return []
+        raw_posts = resp.json()
 
-    results = []
-    try:
-        soup = BeautifulSoup(resp.text, 'html.parser')
+        if not isinstance(raw_posts, list):
+            print(f'[{datetime.now()}] [WARN] Apify returned unexpected format: {type(raw_posts)}')
+            return []
 
-        for g in soup.find_all('div', class_='g')[:num_results]:
-            anchor = g.find('a')
-            if not anchor:
-                continue
-            link = anchor.get('href', '')
-            if 'linkedin.com' not in link:
-                continue
-            if 'linkedin.com/posts' not in link and 'linkedin.com/feed' not in link:
+        # Normalize the response
+        normalized = []
+        for post in raw_posts:
+            author = post.get('author', {})
+            url = post.get('linkedinUrl', '')
+            content = post.get('content', '').strip()
+
+            if not url or not content:
                 continue
 
-            title_tag = g.find('h3')
-            title = title_tag.get_text() if title_tag else ''
-
-            snippet = ''
-            snippet_div = g.find('div', {'data-sncf': True}) or g.find('span', class_='aCOpRe')
-            if snippet_div:
-                snippet = snippet_div.get_text()
-            else:
-                for sel in ['.VwiC3b', '.s3v9rd', '.st']:
-                    s = g.select_one(sel)
-                    if s:
-                        snippet = s.get_text()
-                        break
-
-            results.append({
-                'url': link,
-                'title': title,
-                'snippet': snippet,
-                'search_query': query,
+            normalized.append({
+                'url': url,
+                'content': content,
+                'poster_name': author.get('name', 'LinkedIn User'),
+                'poster_headline': author.get('info', ''),
+                'poster_profile_url': author.get('linkedinUrl', ''),
+                'category': query_obj['category'],
+                'label': query_obj['label'],
             })
-    except Exception as e:
-        print(f'[WARN] Failed to parse Google results for query "{query[:60]}": {e}')
-        return []
 
-    return results
+        print(f'[{datetime.now()}] Found {len(normalized)} posts for: {query_obj["label"]}')
+        return normalized
+
+    except requests.exceptions.Timeout:
+        print(f'[{datetime.now()}] [WARN] Apify request timed out for query: {query_obj["label"]}')
+        return []
+    except Exception as e:
+        print(f'[{datetime.now()}] [WARN] Apify search failed for "{query_obj["label"]}": {e}')
+        return []
 
 
 # ── Groq Lead Analysis ─────────────────────────────────────────────────────────
 
 LEAD_ANALYSIS_PROMPT = """You are helping Muhammad Usman, an AI Automation Engineer from Pakistan, identify and respond to potential leads on LinkedIn.
 
-Here is a LinkedIn post snippet found via search:
+Here is a LinkedIn post found via keyword search:
 URL: {url}
-Title: {title}
-Snippet: {snippet}
-Search query that found it: {query}
+Poster name: {poster_name}
+Poster headline: {poster_headline}
+Post content: {content}
+Search type that found it: {label}
 
 TASK 1 — QUALIFY:
 Is this a genuine potential lead for AI automation services? Score it:
-- HIGH: Person is clearly asking for automation help, has a business problem automation could solve, or is decision-maker expressing frustration with manual processes
-- MEDIUM: Person mentions automation/AI challenges but not clearly seeking services, or context is unclear
-- LOW: Not relevant, just using keywords casually, student/researcher, or clearly not a business buyer
+- HIGH: Person is clearly asking for automation help, has a business problem automation could solve, or is a decision-maker (founder, CEO, director, manager) expressing frustration with manual processes
+- MEDIUM: Person mentions automation/AI challenges but not clearly seeking services, or is a business professional discussing relevant pain points
+- LOW: Not relevant, student/researcher, casual mention of keywords, or clearly not a business buyer
 
 TASK 2 — EXTRACT:
-From the snippet, extract:
-- poster_name: The person's name if visible, otherwise "LinkedIn User"
-- business_context: What their business/role appears to be (1 sentence, "Unknown" if not clear)
-- pain_point: The specific problem or need they mentioned (1 sentence)
+- business_context: What their business/role appears to be (1 sentence max, use poster_headline as context)
+- pain_point: The specific problem or frustration they mentioned in the post (1 sentence, be specific)
 
 TASK 3 — GENERATE COMMENT REPLY:
-Write a comment reply Muhammad could post on their LinkedIn post.
+Write a comment reply Muhammad could post directly on their LinkedIn post.
 Rules:
 - 2-3 sentences maximum
-- Acknowledge their specific situation (reference what they actually said)
-- Position Muhammad as someone who has solved this exact type of problem
-- End with a soft question or invitation to connect, NOT a hard sell
-- Warm, peer-to-peer tone — not salesy
-- Do NOT mention prices, packages, or services explicitly
-- Sound like a human who genuinely wants to help, not a bot
+- Reference something SPECIFIC from their post (show you read it)
+- Position Muhammad naturally as someone who has solved this exact type of problem
+- End with a soft open question or invitation, NOT a hard sell
+- Sound like a genuine human response, not a sales pitch
+- Do NOT mention prices, packages, or "services"
+- Warm, peer-to-peer tone
 
 TASK 4 — GENERATE DM:
-Write a LinkedIn DM Muhammad could send if he connects with this person.
+Write a LinkedIn DM Muhammad could send after connecting with this person.
 Rules:
 - 4-5 sentences maximum
-- Reference their specific post (show you actually read it)
-- Share one specific relevant experience or result Muhammad has achieved
-- Ask ONE qualifying question about their situation
-- Warm, conversational, zero pressure
-- End with a clear but soft next step
+- Open by referencing their specific post (show you actually read it, quote a phrase if possible)
+- Share one relevant result Muhammad has achieved (specific, not vague)
+- Ask ONE qualifying question about their specific situation
+- Zero pressure — end with a soft next step like "happy to share how I did it" or "would love to hear more about your situation"
 
-Return ONLY valid JSON, no markdown, no explanation:
+Return ONLY valid JSON, no markdown, no preamble:
 {{
   "quality": "HIGH" | "MEDIUM" | "LOW",
-  "quality_reason": "one sentence explaining why",
-  "poster_name": "extracted name or LinkedIn User",
+  "quality_reason": "one sentence",
   "business_context": "one sentence",
   "pain_point": "one sentence",
   "comment_reply": "ready to paste comment",
@@ -214,16 +221,17 @@ Return ONLY valid JSON, no markdown, no explanation:
 }}"""
 
 
-def analyze_lead(groq_client: Groq, result: dict, query: str) -> dict | None:
+def analyze_lead(groq_client: Groq, post: dict) -> dict | None:
     """
     Call Groq to classify lead quality and generate reply + DM in one shot.
     Returns parsed dict on success, None on failure.
     """
     prompt = LEAD_ANALYSIS_PROMPT.format(
-        url=result.get('url', ''),
-        title=result.get('title', ''),
-        snippet=result.get('snippet', ''),
-        query=query,
+        url=post.get('url', ''),
+        poster_name=post.get('poster_name', 'LinkedIn User'),
+        poster_headline=post.get('poster_headline', ''),
+        content=post.get('content', ''),
+        label=post.get('label', ''),
     )
 
     for attempt in range(2):
@@ -258,55 +266,43 @@ def analyze_lead(groq_client: Groq, result: dict, query: str) -> dict | None:
                 if attempt == 1:
                     break
 
-    print(f'[WARN] Groq analysis failed for {result.get("url", "unknown")}. Skipping alert.')
+    print(f'[WARN] Groq analysis failed for {post.get("url", "unknown")}. Skipping alert.')
     return None
 
 
 # ── Discord ────────────────────────────────────────────────────────────────────
 
-def format_discord_alert(result: dict, analysis: dict, category: str) -> str:
+def format_discord_alert(post: dict, analysis: dict) -> str:
     quality_emoji = '🔥' if analysis['quality'] == 'HIGH' else '👀'
-    category_label = 'ASKING FOR HELP' if category == 'asking_for_help' else 'HAS A PROBLEM TO SOLVE'
+    category_label = 'ASKING FOR HELP' if post['category'] == 'asking_for_help' else 'HAS A PROBLEM TO SOLVE'
 
-    message = (
+    profile_line = f"\n**Profile:** {post['poster_profile_url']}" if post.get('poster_profile_url') else ''
+    headline_line = f"\n**Role:** {post['poster_headline']}" if post.get('poster_headline') else ''
+
+    msg = (
         f"{quality_emoji} **NEW LEAD — {analysis['quality']} QUALITY**\n"
         f"**Type:** {category_label}\n"
-        f"**Who:** {analysis['poster_name']}\n"
-        f"**Context:** {analysis['business_context']}\n"
-        f"**Their pain:** {analysis['pain_point']}\n"
-        f"**Post:** {result['url']}\n"
-        f"\n---\n"
+        f"**Who:** {post['poster_name']}"
+        f"{headline_line}"
+        f"{profile_line}\n"
+        f"**Pain point:** {analysis['pain_point']}\n"
+        f"**Post:** {post['url']}\n\n"
+        f"---\n"
         f"**COMMENT REPLY (paste on their post):**\n"
-        f"{analysis['comment_reply']}\n"
-        f"\n---\n"
+        f"{analysis['comment_reply']}\n\n"
+        f"---\n"
         f"**DM (send after connecting):**\n"
-        f"{analysis['dm']}\n"
-        f"\n---\n"
-        f'*Found via: "{result["search_query"]}"*'
+        f"{analysis['dm']}\n\n"
+        f"---\n"
+        f"*Search: {post['label']}*"
     )
 
-    # Discord 2000 char limit — truncate DM field if needed
-    if len(message) > DISCORD_MAX_LEN:
-        overflow = len(message) - DISCORD_MAX_LEN + len('... [truncated]')
-        truncated_dm = analysis['dm'][:-overflow] + '... [truncated]'
-        message = (
-            f"{quality_emoji} **NEW LEAD — {analysis['quality']} QUALITY**\n"
-            f"**Type:** {category_label}\n"
-            f"**Who:** {analysis['poster_name']}\n"
-            f"**Context:** {analysis['business_context']}\n"
-            f"**Their pain:** {analysis['pain_point']}\n"
-            f"**Post:** {result['url']}\n"
-            f"\n---\n"
-            f"**COMMENT REPLY (paste on their post):**\n"
-            f"{analysis['comment_reply']}\n"
-            f"\n---\n"
-            f"**DM (send after connecting):**\n"
-            f"{truncated_dm}\n"
-            f"\n---\n"
-            f'*Found via: "{result["search_query"]}"*'
-        )
+    # Discord 2000 char limit — truncate DM if needed
+    if len(msg) > 1990:
+        dm_truncated = analysis['dm'][:300] + '... [truncated — full DM in Supabase]'
+        msg = msg.replace(analysis['dm'], dm_truncated)
 
-    return message
+    return msg[:1990]
 
 
 def send_discord_alert(message: str) -> None:
@@ -321,29 +317,8 @@ def send_discord_alert(message: str) -> None:
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
-ALL_QUERIES = [
-    # (query, category)
-    ('site:linkedin.com "looking for someone to automate"', 'asking_for_help'),
-    ('site:linkedin.com "need help automating"', 'asking_for_help'),
-    ('site:linkedin.com "can anyone recommend automation"', 'asking_for_help'),
-    ('site:linkedin.com "need a developer to build"', 'asking_for_help'),
-    ('site:linkedin.com "looking for an AI solution for"', 'asking_for_help'),
-    ('site:linkedin.com "hire someone to automate"', 'asking_for_help'),
-    ('site:linkedin.com "anyone built an automation for"', 'asking_for_help'),
-    ('site:linkedin.com "need an AI agent to"', 'asking_for_help'),
-    ('site:linkedin.com "doing this manually is killing"', 'describing_problem'),
-    ('site:linkedin.com "wasting hours every week on"', 'describing_problem'),
-    ('site:linkedin.com "our team spends too much time"', 'describing_problem'),
-    ('site:linkedin.com "still using spreadsheets for"', 'describing_problem'),
-    ('site:linkedin.com "copy pasting data every"', 'describing_problem'),
-    ('site:linkedin.com "wish there was a way to automate"', 'describing_problem'),
-    ('site:linkedin.com "manually entering data"', 'describing_problem'),
-    ('site:linkedin.com "takes us hours to"', 'describing_problem'),
-]
-
-
 def main():
-    print(f'[{datetime.now()}] Starting lead hunter')
+    print(f'[{datetime.now()}] Starting Apify lead hunter')
 
     supabase_client = get_supabase_client()
     groq_client = Groq(api_key=os.environ['GROQ_API_KEY'])
@@ -351,64 +326,77 @@ def main():
     total_found = 0
     total_new = 0
     total_alerted = 0
-    google_blocked = False
+    credit_limit_hit = False
 
-    for query, category in ALL_QUERIES:
-        if google_blocked:
-            print(f'[{datetime.now()}] Google blocked — skipping remaining queries.')
+    for query_obj in SEARCH_QUERIES:
+        if credit_limit_hit:
             break
 
-        print(f'[{datetime.now()}] Searching: {query[:70]}')
+        posts = run_apify_search(query_obj)
 
-        results = google_search(query, num_results=5)
+        if not posts and query_obj == SEARCH_QUERIES[0]:
+            # If first query returns nothing, might be a connectivity issue
+            # Continue to try remaining queries
+            pass
 
-        # Detect persistent block (empty return after 429 retry inside google_search)
-        # google_search already handles one 60s retry; if still empty we continue.
-        total_found += len(results)
+        # Check for credit limit signal (empty return after 402)
+        if len(posts) == 0 and credit_limit_hit:
+            break
 
-        if not results:
-            print(f'[{datetime.now()}] No results returned for this query.')
+        total_found += len(posts)
 
-        for result in results:
-            url = result['url']
+        for post in posts:
+            url = post['url']
 
+            # Deduplicate
             if is_already_seen(supabase_client, url):
+                print(f'[{datetime.now()}] Already seen: {url[:70]}')
                 continue
 
             total_new += 1
-            print(f'[{datetime.now()}] New lead found: {url[:80]}')
+            print(f'[{datetime.now()}] New post: {post["poster_name"]} — {url[:70]}')
 
-            analysis = analyze_lead(groq_client, result, query)
+            # Classify and generate replies
+            analysis = analyze_lead(groq_client, post)
 
-            if not analysis:
-                mark_as_seen(supabase_client, url, 'Unknown', result.get('snippet', ''), query, category)
-                continue
-
+            # Always mark as seen to prevent reprocessing
             mark_as_seen(
                 supabase_client,
-                url,
-                analysis.get('poster_name', 'Unknown'),
-                result.get('snippet', ''),
-                query,
-                category,
+                url=url,
+                poster_name=post['poster_name'],
+                snippet=post['content'][:500],
+                query=query_obj['query'],
+                category=post['category'],
             )
 
+            if not analysis:
+                print(f'[{datetime.now()}] Analysis failed for {url[:70]} — marked as seen, no alert')
+                continue
+
+            # Only alert HIGH and MEDIUM
             if analysis['quality'] in ('HIGH', 'MEDIUM'):
-                message = format_discord_alert(result, analysis, category)
+                message = format_discord_alert(post, analysis)
                 send_discord_alert(message)
                 total_alerted += 1
-                print(f'[{datetime.now()}] Discord alert sent — {analysis["quality"]} quality lead')
+                print(f'[{datetime.now()}] Discord alert sent — {analysis["quality"]} quality')
             else:
-                print(f'[{datetime.now()}] LOW quality — skipped alert')
+                print(f'[{datetime.now()}] LOW quality — skipped')
 
-            time.sleep(1)  # Rate limit between Groq calls
+            time.sleep(2)  # Rate limit between Groq calls
 
-        time.sleep(3)  # Rate limit between Google searches
+        # Wait between Apify calls to be respectful
+        time.sleep(5)
 
     print(
         f'[{datetime.now()}] Lead hunt complete. '
         f'Found={total_found}, New={total_new}, Alerted={total_alerted}'
     )
+
+    if total_alerted > 0:
+        send_discord_alert(
+            f'✅ Lead hunt complete — {datetime.now().strftime("%Y-%m-%d %H:%M PKT")}\n'
+            f'Posts scanned: {total_found} | New: {total_new} | Alerts sent: {total_alerted}'
+        )
 
 
 if __name__ == '__main__':

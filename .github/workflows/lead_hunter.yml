@@ -12,6 +12,7 @@ env:
   SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
   SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
   DISCORD_LEAD_HUNTER_WEBHOOK_URL: ${{ secrets.DISCORD_LEAD_HUNTER_WEBHOOK_URL }}
+  APIFY_API_TOKEN:           ${{ secrets.APIFY_API_TOKEN }}
 
 jobs:
   hunt:
