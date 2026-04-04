@@ -16,7 +16,7 @@ import requests
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from tools.db_client import get_post, mark_post_published, mark_post_failed, update_post
+from tools.db_client import get_post, mark_post_published, update_post
 
 load_dotenv()
 
@@ -124,11 +124,8 @@ def create_ugc_post(access_token: str, person_urn: str, content: str, asset_urn:
 def publish_post(post_id: str) -> None:
     post = get_post(post_id)
 
-    if post["status"] != "queued":
-        raise RuntimeError(f"Post status is '{post['status']}', expected 'queued'")
-
-    if post.get("linkedin_post_id"):
-        print(f"Post already has linkedin_post_id={post['linkedin_post_id']} — may be duplicate. Aborting.", file=sys.stderr)
+    if post.get("linkedin_urn"):
+        print(f"Post already has linkedin_urn={post['linkedin_urn']} — may be duplicate. Aborting.", file=sys.stderr)
         sys.exit(1)
 
     access_token = os.environ["LINKEDIN_ACCESS_TOKEN"]
@@ -161,10 +158,10 @@ def publish_post(post_id: str) -> None:
 
     # Create the post
     print("Creating LinkedIn post...", file=sys.stderr)
-    linkedin_post_id = create_ugc_post(access_token, person_urn, post["content"], asset_urn)
+    linkedin_urn = create_ugc_post(access_token, person_urn, post["post_text"], asset_urn)
 
-    mark_post_published(post_id, linkedin_post_id)
-    print(f"Published! LinkedIn post ID: {linkedin_post_id}")
+    mark_post_published(post_id, linkedin_urn)
+    print(f"Published! LinkedIn URN: {linkedin_urn}")
 
 
 def main():
@@ -175,7 +172,6 @@ def main():
     try:
         publish_post(args.post_id)
     except Exception as e:
-        mark_post_failed(args.post_id, str(e))
         print(f"Failed to publish: {e}", file=sys.stderr)
         sys.exit(1)
 

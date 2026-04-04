@@ -169,7 +169,7 @@ def main():
     total_posts = len(this_week)
     total_impressions = sum(p.get('impressions', 0) or 0 for p in this_week)
     total_likes = sum(p.get('likes', 0) or 0 for p in this_week)
-    total_comments_count = sum(p.get('comments', 0) or 0 for p in this_week)
+    total_comments_count = sum(p.get('comments_count', 0) or 0 for p in this_week)
     total_shares = sum(p.get('shares', 0) or 0 for p in this_week)
 
     scores = [engagement_score(p) for p in this_week]

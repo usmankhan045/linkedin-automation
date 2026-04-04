@@ -218,9 +218,9 @@ async def handle_story_submission(message, groq_client: Groq, spreadsheet_id: st
 
     # Save post to Supabase
     post_row = db.create_post(
-        content=post_content,
-        image_prompt=image_prompt,
-        audience_type='story',
+        post_text=post_content,
+        audience='story',
+        category='story',
     )
 
     # Find next Saturday slot

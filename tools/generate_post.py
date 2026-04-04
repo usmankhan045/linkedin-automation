@@ -175,9 +175,8 @@ def main():
     result = call_claude(args.audience, story_content)
 
     post = create_post(
-        content=result["content"],
-        image_prompt=result["image_prompt"],
-        audience_type=args.audience,
+        post_text=result["content"],
+        audience=args.audience,
     )
 
     if args.audience == "story" and story_id:

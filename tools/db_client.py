@@ -24,13 +24,13 @@ def get_client() -> Client:
 
 # ── Posts ──────────────────────────────────────────────────────────────────
 
-def create_post(content: str, image_prompt: str, audience_type: str, scheduled_at: str | None = None) -> dict:
+def create_post(post_text: str, audience: str, topic: str = '', category: str = '', scheduled_at: str | None = None) -> dict:
     """Insert a new post row and return it."""
     row = {
-        "content": content,
-        "image_prompt": image_prompt,
-        "audience_type": audience_type,
-        "status": "image_pending",
+        "post_text": post_text,
+        "audience": audience,
+        "topic": topic,
+        "category": category,
     }
     if scheduled_at:
         row["scheduled_at"] = scheduled_at
@@ -49,21 +49,14 @@ def update_post(post_id: str, **fields) -> dict:
     return result.data[0]
 
 
-def mark_post_queued(post_id: str, image_url: str) -> dict:
-    return update_post(post_id, status="queued", image_url=image_url)
 
-
-def mark_post_published(post_id: str, linkedin_post_id: str) -> dict:
+def mark_post_published(post_id: str, linkedin_urn: str) -> dict:
     return update_post(
         post_id,
-        status="published",
-        linkedin_post_id=linkedin_post_id,
+        linkedin_urn=linkedin_urn,
         published_at=datetime.now(timezone.utc).isoformat(),
     )
 
-
-def mark_post_failed(post_id: str, error_message: str) -> dict:
-    return update_post(post_id, status="failed", error_message=error_message)
 
 
 # ── Stories ────────────────────────────────────────────────────────────────
