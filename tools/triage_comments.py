@@ -54,13 +54,13 @@ def get_recent_post_ids() -> list[str]:
     result = (
         db.get_client()
         .table('posts')
-        .select('linkedin_post_id')
-        .eq('status', 'published')
+        .select('linkedin_urn')
+        .not_.is_('published_at', 'null')
         .gte('published_at', cutoff)
-        .not_.is_('linkedin_post_id', 'null')
+        .not_.is_('linkedin_urn', 'null')
         .execute()
     )
-    return [row['linkedin_post_id'] for row in result.data if row.get('linkedin_post_id')]
+    return [row['linkedin_urn'] for row in result.data if row.get('linkedin_urn')]
 
 
 def fetch_linkedin_comments(post_id: str) -> list[dict]:
@@ -122,11 +122,11 @@ def get_already_processed_ids(comment_ids: list[str]) -> set[str]:
     result = (
         db.get_client()
         .table('processed_comments')
-        .select('linkedin_comment_id')
-        .in_('linkedin_comment_id', comment_ids)
+        .select('comment_id')
+        .in_('comment_id', comment_ids)
         .execute()
     )
-    return {row['linkedin_comment_id'] for row in result.data}
+    return {row['comment_id'] for row in result.data}
 
 
 # ── Groq Classification ────────────────────────────────────────────────────────
@@ -224,7 +224,7 @@ def insert_processed(rows: list[dict]) -> None:
         return
     try:
         db.get_client().table('processed_comments').upsert(
-            rows, on_conflict='linkedin_comment_id'
+            rows, on_conflict='comment_id'
         ).execute()
     except Exception as e:
         print(f'[WARN] processed_comments insert error: {e}')
@@ -309,10 +309,8 @@ def main():
                     counts['C'] += 1
 
                 to_insert.append({
-                    'linkedin_comment_id': comment['comment_id'],
-                    'linkedin_post_id': post_id,
-                    'author_name': comment['author_name'],
-                    'comment_text': comment['comment_text'][:500],
+                    'comment_id': comment['comment_id'],
+                    'post_linkedin_urn': post_id,
                     'category': category,
                 })
 

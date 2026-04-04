@@ -38,12 +38,6 @@ LINKEDIN_API_BASE = 'https://api.linkedin.com/v2'
 SPREADSHEET_ID = os.environ['GOOGLE_SHEETS_SPREADSHEET_ID']
 DISCORD_WEBHOOK = os.getenv('DISCORD_WEBHOOK_CONFIRMATIONS')
 
-# Maps Topic Bank 'audience' values to Supabase CHECK constraint values
-AUDIENCE_TO_DB = {
-    'engineer': 'technical',
-    'founder': 'business',
-    'story': 'story',
-}
 
 
 # ─── Discord ──────────────────────────────────────────────────────────────────
@@ -246,20 +240,14 @@ def insert_to_supabase(post_row: dict, linkedin_urn: str) -> None:
     Logs errors but does NOT raise — the post is already live on LinkedIn.
     """
     try:
-        audience_raw = post_row.get('audience', 'engineer')
-        audience_type = AUDIENCE_TO_DB.get(audience_raw, 'technical')
-
         row = {
-            'content': post_row.get('post_text') or post_row.get('topic', ''),
-            'audience_type': audience_type,
-            'status': 'published',
-            'linkedin_post_id': linkedin_urn,
+            'post_text': post_row.get('post_text') or post_row.get('topic', ''),
+            'topic': post_row.get('topic', ''),
+            'category': post_row.get('category', ''),
+            'audience': post_row.get('audience', 'engineer'),
+            'linkedin_urn': linkedin_urn,
             'published_at': datetime.now(timezone.utc).isoformat(),
         }
-        if post_row.get('scheduled_date'):
-            row['scheduled_at'] = post_row['scheduled_date']
-        if post_row.get('image_path'):
-            row['image_url'] = post_row['image_path']
 
         db.get_client().table('posts').insert(row).execute()
         print(f"[{datetime.now()}] Supabase record inserted.")

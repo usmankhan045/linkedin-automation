@@ -59,14 +59,14 @@ def send_digest(content: str) -> None:
 def engagement_score(post: dict) -> int:
     """Weighted engagement: likes + comments*2 + shares*3."""
     likes = post.get('likes', 0) or 0
-    comments = post.get('comments', 0) or 0
+    comments = post.get('comments_count', 0) or 0
     shares = post.get('shares', 0) or 0
     return likes + comments * 2 + shares * 3
 
 
 def post_first_line(post: dict) -> str:
     """Return first 100 characters of post content."""
-    content = post.get('content', '') or ''
+    content = post.get('post_text', '') or ''
     first_line = content.split('\n')[0][:100]
     return first_line + ('...' if len(content.split('\n')[0]) > 100 else '')
 
@@ -100,9 +100,9 @@ def query_posts_with_retry(cutoff_start: str, cutoff_end: str | None = None) -> 
             q = (
                 db.get_client()
                 .table('posts')
-                .select('id, content, audience_type, linkedin_post_id, published_at, '
-                        'impressions, likes, comments, shares')
-                .eq('status', 'published')
+                .select('id, post_text, audience, linkedin_urn, published_at, '
+                        'impressions, likes, comments_count, shares')
+                .not_.is_('published_at', 'null')
                 .gte('published_at', cutoff_start)
             )
             if cutoff_end:
@@ -195,7 +195,7 @@ def main():
 
     # ── LinkedIn post URLs ─────────────────────────────────────────────────────
     def li_url(post: dict) -> str:
-        li_id = post.get('linkedin_post_id', '')
+        li_id = post.get('linkedin_urn', '')
         return f'https://www.linkedin.com/feed/update/{li_id}/' if li_id else '(no URL)'
 
     # ── Analytics note ─────────────────────────────────────────────────────────
@@ -240,10 +240,10 @@ def main():
                 'key': 'top_performers',
                 'value': json.dumps([
                     {
-                        'content_preview': (p.get('content', '') or '')[:200],
-                        'audience_type': p.get('audience_type', ''),
+                        'content_preview': (p.get('post_text', '') or '')[:200],
+                        'audience_type': p.get('audience', ''),
                         'engagement_score': engagement_score(p),
-                        'linkedin_post_id': p.get('linkedin_post_id', ''),
+                        'linkedin_post_id': p.get('linkedin_urn', ''),
                     }
                     for p in top3
                 ]),
