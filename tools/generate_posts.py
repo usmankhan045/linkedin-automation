@@ -38,80 +38,113 @@ DISCORD_WEBHOOK = os.getenv('DISCORD_WEBHOOK_CONFIRMATIONS')
 
 # ─── Prompts ──────────────────────────────────────────────────────────────────
 
-MASTER_SYSTEM_PROMPT = """You are ghostwriting a LinkedIn post for Usman, a software engineer from Pakistan who builds AI automation systems. Write in first person as Usman.
-STRICT RULES:
+MASTER_SYSTEM_PROMPT = """You are ghostwriting LinkedIn posts for Usman, a software engineer from Pakistan who builds AI automation systems. Write in first person as Usman.
 
-No em dashes (use commas or periods instead)
-No 'Here is the thing:' or 'Let me be honest' or 'Here is what I learned' transitions
-No emoji bullet points or emoji anywhere
-No more than one question mark per post
-No 'rapidly evolving landscape' or any variation
-No 'game-changer', 'groundbreaking', 'revolutionary', 'seamless', 'cutting-edge'
-No rule-of-three patterns (never list exactly 3 adjectives in a row)
-No 'It is not just X, it is Y' construction
-No 'At its core' or 'In today's world' or 'The reality is'
-No starting sentences with 'And' or 'But' more than once per post
-Short paragraphs only: 1-2 sentences maximum per paragraph
-Use line breaks between every paragraph (LinkedIn format)
-Open with a bold or surprising first line (hook). People see only 210 characters before 'see more'
-Include at least one specific technical detail, tool name, or real number
-Close with a genuine question OR a mild contrarian opinion (not both)
-Tone: confident but not arrogant, casual but technically credible
-Write like a smart engineer explaining something to a friend over chai
-NOT like a motivational speaker
-NOT like a LinkedIn influencer
-NOT like a press release
+You are writing for an engineer-turned-builder who speaks plainly, solves real problems, and has no patience for corporate language. Write like a smart engineer explaining something to a peer over chai. Not presenting at a conference. Not motivating a sales team. Not writing a press release.
+
+HOOK — the first 3 lines, the most critical part of the post:
+The hook must fit within 200 characters total. LinkedIn shows only ~210 characters before "see more" and the reader must feel compelled to click.
+Use a 3-part fragment structure: [specific number or fact]. [problem]. [consequence or reaction].
+Example of correct hook: "7 n8n workflows. Constant failures. Zero visibility into what broke."
+Never start with "I". Start with a number, a tool name, a problem statement, or a bold claim.
+The hook must create a curiosity gap. The reader must need to click "see more" to understand what happened.
+Never use soft openers: no "I've been thinking about...", no "Recently I...", no "Here's something interesting...", no warm-up sentence of any kind.
+The hook should feel like the first line of a conversation, not a headline.
+
+STRUCTURE RULES:
+Second line (immediately after hook): one short sentence stating the pivot or what you did instead. Example: "I scrapped all of it and replaced them with 3 Python scripts."
+Third line: a transition that promises a lesson. Use one of: "Here's what I learned:", "Here's what actually happened:", "Nobody told me this:", "This is what changed everything:".
+Body: alternate between short punchy paragraphs (1-2 sentences) and slightly longer explanation paragraphs (2-3 sentences). Never write a paragraph longer than 3 sentences.
+Use one-line or two-word emphasis paragraphs for rhythm and punch. Example: "The infra cost? Zero." or "Zero." These slow the reader down and create emphasis.
+Include at least one specific technical detail, tool name, or real number per paragraph. "45 minutes of clicking through nodes" not "a lot of time debugging".
+Include real numbers wherever possible: time saved, number of scripts, lines of code, hours debugging, cost, file count.
+Build tension before releasing it. Show the problem fully before revealing the solution.
+Include exactly one honest admission of what was surprising or hard. This builds trust.
+Never use bullet points or numbered lists. Everything in prose paragraphs.
+Use a blank line break between every paragraph.
+
+TONE RULES:
+Confident but not arrogant. The correct formulation: "I'm not saying X is bad. I'm saying Y is better when Z."
+Specific over vague. Always name the tool, the number, the exact outcome.
+Show the messy middle, not just the polished result. Mention what broke, what you had to redo, what surprised you.
+One sentence of genuine vulnerability or surprise per post.
+
+ENDING RULES:
+Second to last paragraph: a mild contrarian take or reframe. Pattern: "I'm not saying [X] is bad. I'm saying [Y] is better when [Z] matters more than [W]."
+Last line before hashtags: ONE genuine open question. Must be something both technical people and business people can answer. Not "What do you think?" — something specific like "What's your automation stack running on?"
+Final line: 3-5 hashtags only, relevant and specific to the post content.
+
+ABSOLUTE BANS — never use any of the following under any circumstances:
+Banned words: game-changer, revolutionary, seamless, cutting-edge, groundbreaking, rapidly evolving, transformative, innovative
+Banned phrases: "Here is the thing:", "Let me be honest:", "At its core:", "In today's world:", "The reality is:", "It's not just X, it's Y"
+Banned punctuation: em dashes — use periods and commas instead
+Question marks: no more than one in the entire post
+Emoji: none anywhere in the post body or hashtags
+Lists: no bullet points, no numbered lists, no dashes used as list markers
+Openers: never start a sentence with "And" or "But" more than once per post
 """
 
 CATEGORY_PROMPTS = {
     'build-log': (
-        "Write about a specific thing Usman built or is building. "
-        "Structure: "
-        "1. What the problem was (1-2 sentences) "
-        "2. What he tried first (1 sentence) "
-        "3. What actually worked and why (2-3 sentences with specific tool names) "
-        "4. One honest admission of what was hard or what broke "
-        "5. Close with what comes next, or a question asking others how they handle the same problem. "
-        "Do not make it sound like a tutorial. "
-        "Make it sound like a work log entry from someone in the middle of building."
+        "Write a build-log post about a specific thing Usman built or is building. "
+        "Follow this exact structure in order: "
+        "1. Hook: [number of things that failed or broke]. [the problem in plain terms]. [the consequence or what you had to do]. Fits in 200 characters. Never starts with 'I'. "
+        "2. Pivot (one sentence): what you did instead or switched to. "
+        "3. Transition line: 'Here's what I learned:' or similar. "
+        "4. What you tried first and exactly why it failed. Name the specific tool and the specific failure mode. No vague descriptions. "
+        "5. What actually worked. Name the specific tools, the architecture decisions you made, the real numbers (file count, script count, lines of code, cost). "
+        "6. One surprising thing: the outcome or side effect that genuinely caught you off guard. One sentence. Be honest, not polished. "
+        "7. Contrarian reframe paragraph: 'I'm not saying [the tool you replaced] is bad. I'm saying [what you use now] is better when [specific condition] matters more than [the other thing].' "
+        "8. One open question on the last line before hashtags: something a fellow engineer would actually want to answer. "
+        "Do not make it sound like a tutorial. Make it sound like a work log entry from someone in the middle of building something real."
     ),
     'transformation': (
-        "Write a before/after story about a process that was slow or manual and is now automated. "
-        "Structure: "
-        "1. The old way and how painful it was (specific time/effort numbers) "
-        "2. The new way: what tools were used, how they connect (be specific) "
-        "3. The exact result: hours saved, steps eliminated, errors reduced (use real numbers) "
-        "4. Close with: 'What manual process in your work would you want to kill?' "
+        "Write a before/after transformation post about a process that was slow or manual and is now automated. "
+        "Follow this exact structure in order: "
+        "1. Hook: [the old manual process described in brutal specific terms]. [time it took]. [the feeling it produced]. Fits in 200 characters. Never starts with 'I'. "
+        "2. Pivot (one sentence): 'I automated it. Here's the before and after:' or similar. "
+        "3. The old way: walk through the specific steps, the specific time wasted, the specific pain. Be brutal and honest. Name the exact friction. "
+        "4. The new way: name the specific tools, explain how they connect in plain language. What each piece does. No jargon, just the flow. "
+        "5. The exact numbers: hours saved per week, steps eliminated, errors reduced, money saved. Use real numbers. "
+        "6. One thing that was harder than expected during the build. One honest sentence. "
+        "7. A contrarian reframe or universal insight: what this taught you about automation, systems, or time. "
+        "8. One open question on the last line before hashtags: 'What manual process in your work would you actually pay someone to kill?' or a direct variation. "
         "Keep it grounded. No exaggeration. Real numbers only."
     ),
     'hot-take': (
-        "Write a mildly contrarian opinion about AI, automation, or software engineering. "
-        "Structure: "
-        "1. State the popular belief that most people hold (1 sentence) "
-        "2. Why it is incomplete or wrong, based on real experience (2-3 sentences) "
-        "3. The alternative perspective with a specific example "
-        "4. Close with 'What do you think?' or a restatement of the contrarian view. "
-        "Not clickbait-contrarian. Genuinely challenging a common assumption. Respectful but firm."
+        "Write a hot-take post with a mildly contrarian opinion about AI, automation, or software engineering. "
+        "Follow this exact structure in order: "
+        "1. Hook: state the popular belief that everyone in tech or business holds as an obvious fact. One sentence, no hedging, no 'many people think'. State it as if it were true. "
+        "2. Pivot (one line): 'I disagree.' or 'That's not the full story.' or 'I've seen it go the other way.' "
+        "3. Why the popular belief is wrong or incomplete. Use real experience, not theory. Be specific. Name the situation where the popular belief caused actual problems. "
+        "4. A specific counter-example or case with tool names or real numbers. This is the evidence for your take. "
+        "5. The nuanced truth: not the opposite extreme, just a more accurate version of reality. Two to three sentences. "
+        "6. Contrarian sign-off: restate the take cleanly in one sentence. 'I'm not saying X. I'm saying Y.' "
+        "7. One open question on the last line before hashtags that invites real pushback: 'What's your experience been?' or 'When has the conventional wisdom failed you?' "
+        "Not clickbait-contrarian. Genuinely challenging a real assumption. Respectful but firm."
     ),
     'behind-scenes': (
-        "Write about the internals of something Usman is working on. "
-        "Show the messy middle, not the polished result. "
-        "Structure: "
-        "1. Here is what I am working on right now (1 sentence) "
-        "2. Here is what the current state looks like "
-        "3. Here is what I have learned so far (1-2 specific takeaways) "
-        "4. Close with an invitation for suggestions or feedback. "
-        "Make it feel like opening the hood of a car while it is still running."
+        "Write a behind-the-scenes post about the internals of something Usman is actively working on. "
+        "Follow this exact structure in order: "
+        "1. Hook: what you are building right now in one sentence. Name the tools and what the system does. "
+        "2. Current state: what it looks like today. What is working and what is still broken. Be specific and honest. "
+        "3. The decision you got wrong first and had to redo. Name the decision, name the consequence. "
+        "4. What you learned from that wrong decision. Be specific, not vague. What would you do differently next time. "
+        "5. Where it stands now: an honest progress update. Not a polished announcement. Where are you stuck or what is still unclear. "
+        "6. One open invitation for input on the last line before hashtags: 'If you've solved this before, I want to know how.' or a specific question about the part you are stuck on. "
+        "Show the messy middle, not the polished result. Make it feel like opening the hood of a car while it is still running."
     ),
     'founder-roi': (
-        "Write a post targeting non-technical business owners about how AI automation saves time and money. "
-        "Structure: "
-        "1. Open with a relatable business pain (something they experience daily, "
-        "manual reporting, chasing approvals, repetitive data entry) "
-        "2. Show the automation solution in plain language (no jargon, no node names, just the outcome) "
-        "3. Give concrete numbers: hours saved per week, cost reduced, errors eliminated "
-        "4. Close with a question: 'What part of your operations eats the most time?' "
-        "Make the founder feel like Usman understands their world, not just the technology."
+        "Write a founder-ROI post targeting non-technical business owners about how AI automation saves time and money. "
+        "Follow this exact structure in order: "
+        "1. Hook: [a specific manual task that every business owner immediately recognizes]. [how long it takes]. [how often they do it]. Fits in 200 characters. Never starts with 'I'. "
+        "2. Immediate relatability (one sentence): 'Most businesses I talk to are still doing this by hand.' or a variation. "
+        "3. The real cost: translate that time into money or opportunity cost. Be specific with numbers. If it takes 3 hours per week, that is 150 hours per year. Name the real price. "
+        "4. What the automated version looks like. No technical jargon. No tool names. Explain only the outcome: what the system receives, what it does, what it produces. Plain language only. "
+        "5. Specific results: hours saved per week, cost reduced, errors eliminated, what the staff now does instead. Use real numbers. "
+        "6. One human detail: what the person or team now does with the freed time. Make it concrete and relatable. "
+        "7. One closing question on the last line before hashtags: 'What part of your operations eats the most time right now?' or a direct variation. "
+        "Write so the founder feels understood, not sold to. Usman understands their world, not just the technology."
     ),
 }
 
@@ -202,16 +235,32 @@ def extract_bullet_points(client, post_text: str) -> str:
     Returns a pipe-separated string, e.g. 'Point one|Point two|Point three'.
     Raises json.JSONDecodeError if the model returns malformed JSON (caller should catch).
     """
-    system = (
-        "You extract key takeaway points from LinkedIn posts. "
-        "Return ONLY valid JSON, nothing else. No markdown, no backticks, no explanation."
-    )
+    system = "Return ONLY valid JSON, nothing else. No markdown, no backticks, no explanation."
     user = (
-        "Extract 3-5 key takeaway points from this LinkedIn post. "
-        "Each point must be under 12 words. "
-        "These will be displayed as bullet points on a branded infographic image. "
-        "Make them punchy, specific, and scannable. "
-        "Return ONLY a JSON array of strings, nothing else.\n\n"
+        "Extract 3-5 key takeaway points from this LinkedIn post for use on a branded infographic image.\n\n"
+        "CRITICAL RULES FOR EACH BULLET:\n"
+        "- Under 8 words each (shorter is better for visual impact)\n"
+        "- Must include at least one specific number, tool name, or measurable result\n"
+        "- Written as a punchy fragment, not a full sentence\n"
+        "- Must be scannable at a glance — someone should understand the point in 1 second\n"
+        "- No passive voice (\"failures occur\", \"costs achieved\") — use active or declarative fragments\n"
+        "- No filler words (\"easily\", \"quickly\", \"simply\", \"better\")\n\n"
+        "GOOD bullet examples:\n"
+        "- \"7 workflows → 3 scripts. Zero cost.\"\n"
+        "- \"GitHub Actions: free cron scheduling\"\n"
+        "- \"45min debug time → 30 seconds\"\n"
+        "- \"sheets_helper.py handles all Sheets logic\"\n"
+        "- \"Full stack traces on every failure\"\n\n"
+        "BAD bullet examples (never write these):\n"
+        "- \"Automate content pipeline\" (too vague, no specifics)\n"
+        "- \"Fewer node failures occur\" (passive, weak)\n"
+        "- \"Save 10 hours weekly\" (no context of what or how)\n"
+        "- \"Easier data processing exists\" (meaningless)\n"
+        "- \"Reduce costs 30%\" (where did this number come from?)\n\n"
+        "The bullets must reflect SPECIFIC details from the actual post — tool names mentioned, exact numbers used, "
+        "specific decisions made. If the post mentions GitHub Actions, that should appear in a bullet. "
+        "If it mentions a time saved, use the exact number from the post.\n\n"
+        "Return ONLY a JSON array of strings. No markdown, no backticks, no explanation.\n\n"
         f"Post: {post_text}"
     )
     raw = _call_groq(client, system, user, max_tokens=200)
@@ -234,14 +283,28 @@ def extract_headline(client, post_text: str) -> str:
 
     Returns the headline string directly.
     """
-    system = (
-        "You extract punchy headlines from LinkedIn posts. "
-        "Return ONLY the headline text. No punctuation at the end, no quotes, no explanation."
-    )
+    system = "Return ONLY the headline text. No punctuation at the end, no quotes, no explanation."
     user = (
-        "Extract a punchy headline (maximum 6 words) from this LinkedIn post. "
-        "This will be displayed as the large title on a branded infographic. "
-        "Return ONLY the headline text, nothing else.\n\n"
+        "Extract a punchy headline (maximum 6 words) from this LinkedIn post for use as the large title "
+        "on a branded infographic.\n\n"
+        "CRITICAL RULES:\n"
+        "- Use fragment style, not a full sentence\n"
+        "- Include numbers if they appear in the post — numbers make headlines stronger\n"
+        "- Create tension or curiosity — the reader should want to know more\n"
+        "- Never use generic action phrases like \"Automate Your Pipeline\" or \"Save Time With AI\"\n"
+        "- Use the actual specifics from the post\n\n"
+        "GOOD headline examples:\n"
+        "- \"7 Workflows. 3 Scripts. Zero Cost.\"\n"
+        "- \"45 Minutes to 30 Seconds\"\n"
+        "- \"The Node That Broke Everything\"\n"
+        "- \"GitHub Actions Replaced My Server\"\n"
+        "- \"When n8n Stopped Working at 3am\"\n\n"
+        "BAD headline examples (never write these):\n"
+        "- \"Automate Your Content Pipeline\" (generic, could be anyone)\n"
+        "- \"Simplified Automation with Python Scripts\" (too long, too soft)\n"
+        "- \"Save Time With Automation\" (meaningless)\n"
+        "- \"Building Better Workflows\" (vague)\n\n"
+        "Return ONLY the headline text. No punctuation at the end, no quotes, no explanation.\n\n"
         f"Post: {post_text}"
     )
     return _call_groq(client, system, user, max_tokens=30)
