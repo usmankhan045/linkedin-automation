@@ -61,6 +61,18 @@ End the post with ONE specific open question the target audience would actually 
 Final line: 3-5 hashtags only.
 Do NOT force a contrarian sign-off. If one fits naturally, use it. If not, skip it.
 
+TONE AND REGISTER:
+Write the way a software engineer explains something to another engineer at a meetup — not the way someone crafts a LinkedIn post.
+Use contractions everywhere: "it's", "didn't", "wasn't", "couldn't", "that's", "I've". Formal constructions like "it was not" or "I did not" kill the voice.
+Short sentences are usually better. Fragments are fine and often stronger: "Seven workflows. All down." or "500 lines. 24 hours."
+Vary the rhythm — a very short sentence after a longer one creates punch.
+Avoid corporate filler language. These phrases are dead weight and must never appear:
+  "end result", "the system performed well", "running smoothly", "streamlined", "handle X and Y",
+  "has been worth it", "proved to be", "in terms of", "leveraging", "utilize", "moving forward",
+  "final straw", "all in all", "at the end of the day"
+The specific always beats the vague. "Three clients couldn't open their Monday reports" beats "client data was impacted."
+Include one detail that only someone who actually lived through this would know — not the lesson, the specific texture.
+
 ABSOLUTE BANS — never use any of the following under any circumstances:
 Banned words: game-changer, revolutionary, seamless, cutting-edge, groundbreaking, rapidly evolving, transformative, innovative
 Banned template phrases — these make every post sound identical:
@@ -289,18 +301,18 @@ def extract_bullet_points(client, post_text: str) -> str:
         "Bad: '7 workflows replaced with 3 scripts.' (complete — the transformation is fully stated)\n"
         "Good: 'Why 7 workflows became 3 scripts. One of them was the problem.' (reader needs the post)\n"
         "The reader should think 'wait, how?' or 'wait, what happened next?' after every bullet.\n\n"
-        "GOOD EXAMPLES (engineer posts):\n"
-        "- 'sheets_helper.py replaced 4 n8n nodes'\n"
-        "- 'Zero hosting cost. GitHub Actions handles it.'\n"
-        "- '7 workflows to 3 scripts. Zero failures since.'\n"
-        "- 'Debug time: 45 min to 30 sec'\n"
-        "- 'The rebuild took 2 days. The original took 3 weeks.'\n\n"
-        "GOOD EXAMPLES (founder posts):\n"
-        "- '40 hours of staff time. Recovered.'\n"
-        "- 'The process that took 3 days now takes 4 minutes.'\n"
-        "- '90% fewer invoice errors. Same team.'\n"
-        "- 'One employee freed from the task entirely.'\n"
-        "- 'Zero manual approvals. Same compliance.'\n\n"
+        "GOOD EXAMPLES (engineer posts) — notice these raise questions, they don't answer them:\n"
+        "- '2am. Seven workflows down. Three clients dark.'\n"
+        "- 'The cron job n8n couldn't run. GitHub Actions ran it free.'\n"
+        "- '50 lines replaced a week of manual exports'\n"
+        "- 'The bug wasn't in the code. It was in the config.'\n"
+        "- 'Rebuilt in a day. Original took three weeks.'\n\n"
+        "GOOD EXAMPLES (founder posts) — concrete, human, slightly unsettling:\n"
+        "- 'Three days of work. Four minutes now.'\n"
+        "- 'The error that cost the client a full Monday.'\n"
+        "- 'One person freed. Redeployed to actual work.'\n"
+        "- '40 hours a month. Recovered. Same headcount.'\n"
+        "- 'Invoice errors dropped. Nobody changed the team.'\n\n"
         "BAD EXAMPLES (never write these):\n"
         "- 'Automate your content pipeline' (generic, no specifics)\n"
         "- 'Save time with better tools' (meaningless)\n"

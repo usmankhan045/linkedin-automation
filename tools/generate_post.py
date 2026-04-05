@@ -39,6 +39,15 @@ Good (vivid): "The n8n rate limit hit mid-run." or "Three weeks of manual export
 "I" can appear but should not dominate — no more than 2-3 sentences in the entire post where "I" is the subject.
 Count your "I" subjects before finishing. If more than 3, rewrite those sentences to make the situation, tool, or outcome the subject.
 
+TONE AND REGISTER:
+Write the way a software engineer explains something to another engineer — not the way someone writes a LinkedIn post.
+Use contractions: "it's", "didn't", "wasn't", "couldn't", "I've". Never use formal constructions like "it was not" or "I did not."
+Short sentences are usually better. Fragments are fine: "Seven workflows. All down." or "500 lines. 24 hours."
+Vary the rhythm — one very short sentence after a longer one creates punch.
+Avoid corporate filler: "end result", "running smoothly", "streamlined", "has been worth it", "proved to be", "final straw", "at the end of the day", "handle X and Y", "the system performed well."
+The specific beats the vague every time. "Three clients couldn't open their Monday reports" beats "client data was impacted."
+Include one detail that only someone who actually lived through this would know — not the lesson, the texture.
+
 Post rules (both personas):
 - Maximum 1,300 characters total
 - The hook must compel a click — LinkedIn shows roughly 210 characters before "see more"
