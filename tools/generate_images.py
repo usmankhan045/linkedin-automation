@@ -93,6 +93,13 @@ def build_html(template_path: Path, post: dict, bullets: list[str], post_number:
     bullet_count = len(bullets)
     padded = (bullets + [''] * 5)[:5]
 
+    audience_titles = {
+        'engineer': 'AI Automation Engineer',
+        'founder':  'Automation Strategist',
+        'story':    'AI Automation Engineer',
+    }
+    audience_key = post.get('audience', 'engineer')
+
     replacements = {
         '{{CATEGORY_LABEL}}': post.get('category_label', 'BUILD LOG'),
         '{{HEADLINE}}':       post.get('headline', ''),
@@ -104,7 +111,7 @@ def build_html(template_path: Path, post: dict, bullets: list[str], post_number:
         '{{BULLET_COUNT}}':   str(bullet_count),
         '{{POST_NUMBER}}':    str(post_number),
         '{{NAME}}':           'Muhammad Usman',
-        '{{TITLE}}':          'AI Automation Engineer',
+        '{{TITLE}}':          audience_titles.get(audience_key, 'AI Automation Engineer'),
         # Injected into style="" — empty string means visible, 'display:none' hides
         '{{BULLET_4_STYLE}}': 'display:none' if bullet_count < 4 else '',
         '{{BULLET_5_STYLE}}': 'display:none' if bullet_count < 5 else '',
