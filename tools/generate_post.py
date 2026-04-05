@@ -56,7 +56,8 @@ Post rules (both personas):
 - One blank line between paragraphs
 - No more than 5 hashtags, placed at the end
 - CTA must be specific: ask a question, invite a DM, or prompt a comment
-- No em dashes, no emoji, no bullet points in the post body"""
+- No em dashes, no emoji, no bullet points in the post body
+- No file names ever (sheets_helper.py, generate_posts.py, etc.) — describe what the code does, not what it's called"""
 
 AUDIENCE_PROMPTS = {
     "technical": """PERSONA: THE ENGINEER
