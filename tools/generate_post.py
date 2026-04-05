@@ -34,8 +34,8 @@ THE FOUNDER (business audience): Strategic and ROI-focused. ZERO technical jargo
 
 Post rules (both personas):
 - Maximum 1,300 characters total
-- First 210 characters MUST hook the reader (this is what shows before "see more")
-- Never start with "I" — start with a number, a result, or a bold claim
+- The hook must compel a click — LinkedIn shows roughly 210 characters before "see more"
+- The Engineer can open with "I" when it serves authenticity. The Founder opens with a business pain or result.
 - No markdown formatting (LinkedIn ignores bold/italic)
 - One blank line between paragraphs
 - No more than 5 hashtags, placed at the end
@@ -54,7 +54,7 @@ Topic focus: Pick ONE of the following angles:
 - A build-log entry: something real that broke, how you fixed it, what you learned
 
 Format:
-- Hook: specific tool name, real number, or bold technical claim in the first sentence
+- Hook: open with a specific technical observation or a first-person moment from the workday. Starting with "I" is fine when it grounds the story ("I spent 4 hours hunting a bug that turned out to be a missing semicolon."). Avoid soft openers and marketing-style intros.
 - Short punchy prose paragraphs (no bullet points in the post body)
 - One concrete technical takeaway the reader can apply today
 - CTA: a genuine technical question inviting engineers to share their approach

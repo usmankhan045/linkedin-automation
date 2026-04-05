@@ -42,13 +42,13 @@ MASTER_SYSTEM_PROMPT = """You are ghostwriting LinkedIn posts for Muhammad Usman
 
 Usman posts on LinkedIn five days a week using two distinct personas. The category prompt will tell you which persona to use. Read it carefully before writing.
 
-SHARED HOOK RULES (apply to both personas):
-The hook must fit within 200 characters total. LinkedIn shows only ~210 characters before "see more" and the reader must feel compelled to click.
-Use a 3-part fragment structure: [specific number or fact]. [problem]. [consequence or reaction].
-Never start with "I". Start with a number, a result, a decision, or a bold claim.
-The hook must create a curiosity gap — the reader must need to click "see more" to understand what happened.
-Never use soft openers: no "I've been thinking about...", no "Recently I...", no "Here's something interesting...", no warm-up sentence of any kind.
-The hook should feel like the first line of a conversation, not a headline.
+HOOK APPROACH (persona-specific — see category prompt for the specific opening style):
+The hook must feel like the first line of a real conversation, not a marketing headline.
+LinkedIn shows roughly 210 characters before "see more" — write a hook strong enough to compel a click, but do not mechanically restrict yourself to a character count.
+The Engineer can open with "I" when it serves authenticity. Example: "I spent 4 hours hunting a bug that turned out to be a missing semicolon."
+The Founder opens with a relatable business pain or a specific operational result a business owner immediately recognizes.
+Both personas avoid soft openers: no "I've been thinking about...", no "Here's something interesting...", no warm-up sentences of any kind.
+The goal is curiosity and authenticity — not the formula "[number]. [problem]. [consequence]."
 
 SHARED ENDING RULES (apply to both personas):
 Second to last paragraph: a mild contrarian take or reframe. Pattern: "I'm not saying [X] is bad. I'm saying [Y] is better when [Z] matters more than [W]."
@@ -77,8 +77,10 @@ CATEGORY_PROMPTS = {
         "Never write a hook that sounds like a marketing guru wrote it.\n\n"
         "Write a build-log post about a specific thing Usman built or is building. "
         "Follow this exact structure in order:\n"
-        "1. Hook: [number of things that failed or broke]. [the problem in plain terms]. "
-        "[the consequence or what you had to do]. Fits in 200 characters. Never starts with 'I'.\n"
+        "1. Hook: Open with a specific technical moment or a first-person observation from the build. "
+        "You can start with 'I' if it serves the story ('I spent a week fighting a race condition I could not reproduce in staging.'). "
+        "You can also open with a stark number or a tool name. Drop the reader into the middle of the build. "
+        "Aim to compel the click but do not force a rigid structure.\n"
         "2. Pivot (one sentence): what you did instead or switched to.\n"
         "3. Transition line: 'Here's what I learned:' or 'Here's what actually happened:' or 'Nobody told me this:'\n"
         "4. What you tried first and exactly why it failed. Name the specific tool and the specific failure mode. "
@@ -104,8 +106,9 @@ CATEGORY_PROMPTS = {
         "No marketing-guru hooks.\n\n"
         "Write a before/after transformation post about a process that was slow or manual and is now automated. "
         "Follow this exact structure in order:\n"
-        "1. Hook: [the old manual process described in brutal specific terms]. [time it took]. "
-        "[the feeling it produced]. Fits in 200 characters. Never starts with 'I'.\n"
+        "1. Hook: Open with the specific pain of the old process. You can start with 'I' if it grounds the experience "
+        "('I used to spend every Sunday night manually copying rows between spreadsheets.'). "
+        "You can also open with the process described in concrete terms. Make the reader feel the weight of the manual work before you show them the exit.\n"
         "2. Pivot (one sentence): 'I automated it. Here's the before and after:' or similar.\n"
         "3. The old way: walk through the specific steps, the specific time wasted, the specific pain. "
         "Name the exact friction. Be brutal and honest.\n"
@@ -177,8 +180,10 @@ CATEGORY_PROMPTS = {
         "'Eliminated a 3-step manual approval process', 'Cut invoice errors by 90%'.\n\n"
         "Write a founder-ROI post targeting non-technical business owners about how AI automation "
         "saves time and money. Follow this exact structure in order:\n"
-        "1. Hook: [a specific manual task that every business owner immediately recognizes]. "
-        "[how long it takes]. [how often they do it]. Fits in 200 characters. Never starts with 'I'.\n"
+        "1. Hook: Open with a specific business pain that every business owner recognizes. "
+        "Lead with the operational reality, not a question or a motivational opener. "
+        "Example: 'Your team is losing 3 hours every Monday to manual data entry.' "
+        "or 'Three hours. Every single Monday. Just to reconcile last week's numbers.'\n"
         "2. Immediate relatability (one sentence): 'Most businesses I talk to are still doing this "
         "by hand.' or a variation. Make the founder feel seen.\n"
         "3. The real cost: translate that time into money or opportunity cost. Be specific. "
@@ -305,15 +310,13 @@ def extract_bullet_points(client, post_text: str) -> str:
         "- No filler adjectives ('simple', 'easy', 'powerful', 'seamless', 'smart')\n"
         "- No generic claims ('saves time', 'reduces errors') unless paired with a specific number\n"
         "- HINT at the result. Do NOT explain how it was achieved.\n\n"
-        "THE CURIOSITY GAP FORMULA:\n"
-        "Each bullet must fit one of these patterns:\n"
-        "- RESULT without REASON: '45 minutes to 30 seconds. No extra tools.'\n"
-        "- COUNTERINTUITIVE FACT: 'n8n was the problem, not the solution.'\n"
-        "- SPECIFIC NUMBER that needs context: '7 workflows. Now just 3 scripts.'\n"
-        "- DECISION that needs explanation: 'Switched hosting. Cost: $0.'\n"
-        "- FAILURE that led somewhere: 'Node failed silently at 3am. Last time.'\n"
-        "- OUTCOME without PROCESS (founder posts): 'Sarah stopped doing this manually in week 1.'\n"
-        "- COST REVEAL (founder posts): '156 hours a year. Gone.'\n\n"
+        "THE INCOMPLETE STORY RULE:\n"
+        "Each bullet must be an incomplete story — it hints at a result but forces the reader into the post to find out how.\n"
+        "Bad: 'Saved 40 hours with Python.' (complete — reader has the full fact, no reason to click)\n"
+        "Good: 'The 50-line script that killed a 40-hour manual process.' (what process? how does 50 lines do that?)\n"
+        "Bad: '7 workflows replaced with 3 scripts.' (complete — the transformation is fully stated)\n"
+        "Good: 'Why 7 workflows became 3 scripts. One of them was the problem.' (reader needs the post)\n"
+        "The reader should think 'wait, how?' or 'wait, what happened next?' after every bullet.\n\n"
         "GOOD EXAMPLES (engineer posts):\n"
         "- 'sheets_helper.py replaced 4 n8n nodes'\n"
         "- 'Zero hosting cost. GitHub Actions handles it.'\n"
@@ -372,16 +375,17 @@ def extract_headline(client, post_text: str) -> str:
         "CRITICAL RULES:\n"
         "- Use fragment style, not a full sentence\n"
         "- Include numbers if they appear in the post — numbers make headlines stronger\n"
-        "- Create tension or curiosity — the reader should want to know more\n"
+        "- Create tension or curiosity — the reader should want to know more, not feel the post has already been summarized\n"
+        "- Prefer headlines that imply a problem, a failure, or a counterintuitive outcome\n"
         "- Never use generic action phrases like 'Automate Your Pipeline' or 'Save Time With AI'\n"
         "- Use the actual specifics from the post\n\n"
-        "GOOD headline examples:\n"
-        "- '7 Workflows. 3 Scripts. Zero Cost.'\n"
-        "- '45 Minutes to 30 Seconds'\n"
+        "GOOD headline examples (tension-first):\n"
+        "- 'Why Your n8n Workflow Will Fail'\n"
+        "- 'The Refactor That Cost Three Days'\n"
+        "- 'State Management Was the Bug'\n"
         "- 'The Node That Broke Everything'\n"
-        "- 'GitHub Actions Replaced My Server'\n"
         "- '40 Hours of Staff Time. Gone.'\n"
-        "- 'When n8n Stopped Working at 3am'\n\n"
+        "- 'When Latency Hid in Plain Sight'\n\n"
         "BAD headline examples (never write these):\n"
         "- 'Automate Your Content Pipeline' (generic, could be anyone)\n"
         "- 'Simplified Automation with Python Scripts' (too long, too soft)\n"
