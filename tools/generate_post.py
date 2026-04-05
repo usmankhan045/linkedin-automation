@@ -45,41 +45,41 @@ Post rules (both personas):
 AUDIENCE_PROMPTS = {
     "technical": """PERSONA: THE ENGINEER
 
-Write a LinkedIn post for an audience of AI developers, engineers, and tech builders.
+Write a LinkedIn post for AI developers, engineers, and technical builders.
 
-Topic focus: Pick ONE of the following angles:
-- A specific implementation pattern or architecture decision
-- A counterintuitive finding from building AI systems in the real world
-- A tool that failed and what you replaced it with (name the tools, name the failure)
-- A build-log entry: something real that broke, how you fixed it, what you learned
+Usman is from Charsadda, Pakistan, studied at COMSATS Abbottabad, and builds real systems with real constraints — no enterprise budget, inconsistent infrastructure, building lean because he has to. Use this context when it adds texture, not as decoration.
 
-Format:
-- Hook: open with a specific technical observation or a first-person moment from the workday. Starting with "I" is fine when it grounds the story ("I spent 4 hours hunting a bug that turned out to be a missing semicolon."). Avoid soft openers and marketing-style intros.
-- Short punchy prose paragraphs (no bullet points in the post body)
-- One concrete technical takeaway the reader can apply today
-- CTA: a genuine technical question inviting engineers to share their approach
-- Hashtags: #AIEngineering #BuildInPublic #Python #Automation (pick 3-4 relevant ones)
+Open with the specific moment things got interesting. You can start with "I" when it's natural. Avoid motivational setups and marketing-style openers. Drop the reader into the situation directly.
+
+Tell the story in the order it happened. Do not announce sections. Do not write transition labels. Name the exact tools and numbers as they come up — lines of code, hours spent, cost, specific failure modes. These go in the story, not in a summary.
+
+Be honest about what was harder than expected. One specific sentence, not "it was challenging."
+
+End with a question a fellow engineer would actually want to answer. Keep every paragraph to one or two sentences. Blank line between paragraphs.
+
+Banned template phrases — never use: "Here's what I learned:", "What actually worked was:", "One surprising thing was", "I'm not saying X is bad. I'm saying Y is better when Z."
+
+Hashtags: #AIEngineering #BuildInPublic #Python #Automation (pick 3-4 relevant ones)
 
 Also return an image_prompt: describe a visual concept for the CSS background theme (e.g., "deep midnight blue with faint circuit-board geometry") — this is used to select a static template, not to generate an image.""",
 
     "business": """PERSONA: THE FOUNDER
 
-Write a LinkedIn post for an audience of SME founders and business owners who are NOT technical.
+Write a LinkedIn post for SME founders and business owners who are NOT technical.
 
-HARD CONSTRAINT: Zero technical jargon. No mention of tools, code, APIs, or any engineering concepts. If you find yourself writing a technical term, stop and rephrase as a business outcome.
+HARD CONSTRAINT: zero technical vocabulary. Do not write: nodes, JSON, Python, API, n8n, script, code, GitHub, LLM, model, function, endpoint, workflow, or any engineering term. If you catch yourself about to write one, describe the business outcome instead.
 
-Topic focus: Pick ONE of the following angles:
-- A specific automation result framed purely in business terms (hours saved, cost reduced, errors eliminated)
-- A process that most businesses do manually and the exact cost of doing so
-- A misconception about AI that is costing business owners money or time
-- A before/after story about how a team's week changed after automating one task
+Open with the specific operational moment every founder recognizes — a concrete scenario, not an abstract claim. "Your team is losing 3 hours every Monday to manual data entry." Or: "Three hours. Every Monday. Just to reconcile last week's numbers."
 
-Format:
-- Hook: lead with a specific relatable pain or result ("Your team spends 3 hours every Monday doing X...")
-- Problem to Cost to Solution (in plain English) to Outcome structure
-- Real numbers only: hours per week, hours per year, percentage reduction, money saved
-- CTA: "DM me to explore this for your business" or a specific open question
-- Hashtags: #AIForBusiness #Automation #OperationalEfficiency (pick 3 relevant ones)
+Make the real cost visible. Hours per week into hours per year. Dollar amount if possible. Make the status quo feel expensive without making the founder feel foolish.
+
+Describe the better version in business language only: what gets handled automatically, what the team no longer touches. No technical explanation.
+
+Include specific results and one human detail — what the freed-up person actually does with that time.
+
+End with a question that makes the founder think about their own most expensive manual process. Write so the founder feels understood, not sold to. Keep every paragraph short. Blank line between paragraphs.
+
+Hashtags: #AIForBusiness #Automation #OperationalEfficiency (pick 3 relevant ones)
 
 Also return an image_prompt: describe a visual concept for the CSS background theme (e.g., "airy white and soft blue gradient with gentle light from the upper right") — this is used to select a static template, not to generate an image.""",
 
