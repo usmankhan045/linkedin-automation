@@ -124,17 +124,14 @@ def run_apify_search(query_obj: dict) -> list[dict]:
     """
     payload = {
         "searchQueries": [query_obj["query"]],
-        "maxPosts": MAX_POSTS_PER_QUERY,
-        "postedLimit": "24h",
-        "sortBy": "date_posted",
-        "scrapeReactions": False,
-        "scrapeComments": False,
+        "maxPosts": 5,
     }
 
     params = {"token": APIFY_API_TOKEN}
 
     try:
         print(f'[{datetime.now()}] Running Apify query: {query_obj["label"]}')
+        print(f'[{datetime.now()}] Sending payload: {json.dumps(payload)}')
         resp = requests.post(
             APIFY_ACTOR_URL,
             json=payload,
@@ -183,6 +180,14 @@ def run_apify_search(query_obj: dict) -> list[dict]:
 
     except requests.exceptions.Timeout:
         print(f'[{datetime.now()}] [WARN] Apify request timed out for query: {query_obj["label"]}')
+        return []
+    except requests.exceptions.HTTPError as e:
+        try:
+            error_body = e.response.text
+        except Exception:
+            error_body = 'could not read response body'
+        print(f'[{datetime.now()}] [WARN] Apify 400 error body: {error_body}')
+        print(f'[{datetime.now()}] [WARN] Apify search failed for "{query_obj["label"]}": {e}')
         return []
     except Exception as e:
         print(f'[{datetime.now()}] [WARN] Apify search failed for "{query_obj["label"]}": {e}')
