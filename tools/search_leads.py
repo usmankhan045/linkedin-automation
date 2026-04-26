@@ -105,7 +105,7 @@ def run_apify_search(query_obj: dict) -> list[dict]:
     payload = {
         "searchQueries": [query_obj["query"]],
         "maxPosts": 5,
-        "sortBy": "date_posted",
+        "sortBy": "date",
         "postedLimit": POSTED_LIMIT,
     }
 
