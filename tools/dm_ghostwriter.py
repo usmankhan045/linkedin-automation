@@ -100,15 +100,26 @@ PERSONA_PROMPTS: dict[str, str] = {
         '- 3-4 sentences max\n\n'
         'Reply only with the DM text — no explanation, no labels.'
     ),
+    'comment': (
+        'Muhammad wants to leave a comment on this LinkedIn post.\n\n'
+        'Original post:\n"{original_message}"\n\n'
+        'Write a LinkedIn comment that:\n'
+        '- Is perfectly human looking, absolutely no bullshit or fluff\n'
+        '- Specifically addresses the main point of their post\n'
+        '- Tone: "casual plus professional" (not too formal, not too casual)\n'
+        '- Is not too long (2-3 sentences max)\n\n'
+        'Reply only with the comment text ready to paste — no explanation, no labels.'
+    ),
 }
 
 HELP_TEXT = (
     '❓ Command not recognized. Available commands:\n'
-    '`/biz [message]`    — Reply to a business owner\n'
-    '`/tech [message]`   — Reply to a developer/engineer\n'
-    '`/follow [message]` — Follow up with a post commenter\n'
-    '`/reply [message]`  — Generic reply (any context)\n'
-    '`/retry`            — Regenerate the last draft'
+    '`/biz [message]`     — Reply to a business owner\n'
+    '`/tech [message]`    — Reply to a developer/engineer\n'
+    '`/follow [message]`  — Follow up with a post commenter\n'
+    '`/reply [message]`   — Generic reply (any context)\n'
+    '`/comment [post]`    — Generate a post comment\n'
+    '`/retry`             — Regenerate the last draft'
 )
 
 
@@ -151,7 +162,7 @@ def format_draft_reply(command: str, draft: str, truncated: bool = False) -> str
         f'{draft}{suffix}\n\n'
         f'---\n'
         f'📋 Copy above ↑\n'
-        f'🔄 `/retry` to regenerate | `/biz`, `/tech`, `/follow`, `/reply [message]` for a new draft'
+        f'🔄 `/retry` to regenerate | `/biz`, `/tech`, `/follow`, `/reply`, `/comment [text]` for a new draft'
     )
 
 
@@ -206,10 +217,10 @@ def main():
                     )
                 return
 
-            # Parse /biz /tech /follow /reply
+            # Parse /biz /tech /follow /reply /comment
             command = None
             their_message = ''
-            for cmd in ('biz', 'tech', 'follow', 'reply'):
+            for cmd in ('biz', 'tech', 'follow', 'reply', 'comment'):
                 prefix = f'/{cmd}'
                 if content.lower().startswith(prefix):
                     their_message = content[len(prefix):].strip()
