@@ -433,14 +433,14 @@ def main():
                 print(f'[{datetime.now()}] Analysis failed for {url[:70]} — marked as seen, no alert')
                 continue
 
-            # Only alert HIGH and MEDIUM
-            if analysis['quality'] in ('HIGH', 'MEDIUM'):
+            # Only alert HIGH leads
+            if analysis['quality'] == 'HIGH':
                 message = format_discord_alert(post, analysis)
                 send_discord_alert(message)
                 total_alerted += 1
-                print(f'[{datetime.now()}] Discord alert sent — {analysis["quality"]} quality')
+                print(f'[{datetime.now()}] Discord alert sent — HIGH quality')
             else:
-                print(f'[{datetime.now()}] LOW quality — skipped')
+                print(f'[{datetime.now()}] {analysis["quality"]} quality — skipped')
 
             time.sleep(2)  # Rate limit between Groq calls
 
