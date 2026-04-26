@@ -24,7 +24,8 @@ import os
 import sys
 import json
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from dateutil import parser as date_parser
 
 import requests
 from groq import Groq
@@ -42,24 +43,34 @@ POSTED_LIMIT = '24h'
 
 SEARCH_QUERIES = [
     {
-        "query": '"AI automation" AND ("looking for" OR "help" OR "hiring" OR "need")',
+        "query": '"looking for an AI developer"',
         "category": "asking_for_help",
-        "label": "AI Automation Opportunities"
+        "label": "Seeking AI Developer"
     },
     {
-        "query": '("generative AI" OR "LLM" OR "RAG") AND ("project" OR "developer" OR "hiring" OR "expert" OR "need")',
+        "query": '"looking for an AI agency"',
         "category": "asking_for_help",
-        "label": "GenAI/LLM/RAG Opportunities"
+        "label": "Seeking AI Agency"
     },
     {
-        "query": '("agentic AI" OR "AI agents" OR "AI chatbot") AND ("hiring" OR "looking for" OR "help")',
+        "query": '"need help with AI automation"',
         "category": "asking_for_help",
-        "label": "Agentic AI / Chatbot Opportunities"
+        "label": "Needs AI Automation Help"
     },
     {
-        "query": '("AI automation" OR "generative AI" OR "AI agents") AND ("struggling" OR "problem" OR "recommend" OR "advice")',
-        "category": "describing_problem",
-        "label": "AI Problems or Recommendations"
+        "query": '"recommend an AI agency" OR "recommend an AI developer"',
+        "category": "asking_for_help",
+        "label": "Recommendations for AI"
+    },
+    {
+        "query": '"hiring generative AI" OR "hiring AI automation"',
+        "category": "filtered_job_post",
+        "label": "Hiring Specific AI Roles"
+    },
+    {
+        "query": '"looking for an AI consultant"',
+        "category": "asking_for_help",
+        "label": "Seeking AI Consultant"
     }
 ]
 
@@ -140,6 +151,18 @@ def run_apify_search(query_obj: dict) -> list[dict]:
         # Normalize the response
         normalized = []
         for post in raw_posts:
+            # Enforce strict 24-hour Python-level timestamp filter
+            post_time_str = post.get('publishedAt') or post.get('postedAtISO') or post.get('time')
+            if post_time_str:
+                try:
+                    post_time = date_parser.parse(post_time_str)
+                    if post_time.tzinfo is None:
+                        post_time = post_time.replace(tzinfo=timezone.utc)
+                    if datetime.now(timezone.utc) - post_time > timedelta(hours=24):
+                        continue  # Skipped: mathematically older than 24h
+                except Exception:
+                    pass
+
             author = post.get('author', {})
             url = post.get('linkedinUrl', '')
             content = post.get('content', '').strip()
