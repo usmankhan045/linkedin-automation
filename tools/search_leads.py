@@ -105,6 +105,8 @@ def run_apify_search(query_obj: dict) -> list[dict]:
     payload = {
         "searchQueries": [query_obj["query"]],
         "maxPosts": 5,
+        "sortBy": "date_posted",
+        "postedLimit": POSTED_LIMIT,
     }
 
     params = {"token": APIFY_API_TOKEN}
@@ -192,11 +194,12 @@ IMMEDIATELY score LOW (do not proceed to HIGH/MEDIUM) if ANY of these are true:
 - The poster is a job seeker looking for work (e.g. "open to work", "seeking opportunities", "hire me", "my resume")
 - The post is from an AI company, software vendor, or automation agency promoting their own product or services (competitors)
 - The post appears to be AI-generated promotional content or a general thought-leadership piece with no real personal pain
-- The post is a generic opinion piece or tutorial about AI trends with no concrete personal business problem
+- The post is a generic opinion piece, tutorial, educational content, or celebrating a personal achievement/certificate.
+- The post is a standard full-time employment job listing (we want to avoid full-time jobs, focus on clients/projects).
 
 Score HIGH if:
 - A business owner, founder, or operator is expressing a specific, personal operational pain point that AI automation, LLMs, or agents could solve
-- A technical person, founder, or hiring manager is posting an opportunity, job, or project specifically hiring for AI automation, AI agents, or Generative AI
+- A technical person, founder, or hiring manager is posting a freelance or consulting project specifically looking for AI automation/GenAI help or agents (prioritize project/freelance over full time roles, we are looking for clients).
 - Someone is directly asking for tool recommendations, AI expertise, or help automating their workflow
 
 Score MEDIUM if:
