@@ -41,54 +41,26 @@ MAX_POSTS_PER_QUERY = 5
 POSTED_LIMIT = '24h'
 
 SEARCH_QUERIES = [
-    # ── First-person pain point: manual / repetitive work ──────────────────────
     {
-        "query": "I spend hours every week manually copying data",
-        "category": "describing_problem",
-        "label": "Manual data entry pain (first-person)"
+        "query": '"AI automation" AND ("looking for" OR "help" OR "hiring" OR "need")',
+        "category": "ai_automation_opportunity",
+        "label": "AI Automation Opportunities"
     },
     {
-        "query": "our team is still doing everything manually in spreadsheets",
-        "category": "describing_problem",
-        "label": "Still on spreadsheets (first-person)"
+        "query": '("generative AI" OR "LLM" OR "RAG") AND ("project" OR "developer" OR "hiring" OR "expert" OR "need")',
+        "category": "gen_ai_opportunity",
+        "label": "GenAI/LLM/RAG Opportunities"
     },
     {
-        "query": "I am drowning in repetitive tasks every day",
-        "category": "describing_problem",
-        "label": "Repetitive task overload"
+        "query": '("agentic AI" OR "AI agents" OR "AI chatbot") AND ("hiring" OR "looking for" OR "help")',
+        "category": "agentic_ai_opportunity",
+        "label": "Agentic AI / Chatbot Opportunities"
     },
     {
-        "query": "we keep copy pasting between systems all day",
-        "category": "describing_problem",
-        "label": "Copy-paste between systems"
-    },
-    # ── First-person asks for recommendation / help ────────────────────────────
-    {
-        "query": "can anyone recommend how to automate my workflow",
-        "category": "asking_for_help",
-        "label": "Asking community for automation advice"
-    },
-    {
-        "query": "does anyone know how to automate this business process",
-        "category": "asking_for_help",
-        "label": "Asking how to automate process"
-    },
-    {
-        "query": "I need someone to help me automate my business",
-        "category": "asking_for_help",
-        "label": "Directly seeking automation help"
-    },
-    # ── Frustration with current tools / processes ─────────────────────────────
-    {
-        "query": "I hate how much time I waste on admin tasks",
-        "category": "describing_problem",
-        "label": "Admin task frustration"
-    },
-    {
-        "query": "our operations are a mess nothing is automated",
-        "category": "describing_problem",
-        "label": "Operational chaos"
-    },
+        "query": '("AI automation" OR "generative AI" OR "AI agents") AND ("struggling" OR "problem" OR "recommend" OR "advice")',
+        "category": "ai_automation_problem",
+        "label": "AI Problems or Recommendations"
+    }
 ]
 
 
@@ -214,38 +186,35 @@ Post content: {content}
 Search type that found it: {label}
 
 TASK 1 — QUALIFY:
-Is this a genuine potential lead for AI automation services? Score it:
+Is this a genuine potential lead for AI automation, GenAI, or Agentic AI services? Score it:
 
 IMMEDIATELY score LOW (do not proceed to HIGH/MEDIUM) if ANY of these are true:
-- The post is a job posting or recruitment ad (e.g. "We're hiring", "We're looking for a Senior X", "Apply now", "Read the full JD", "DM me to apply")
-- The post is from an AI company, software vendor, or automation agency promoting their own product or services
-- The post appears to be AI-generated promotional content or a thought-leadership piece with no real personal pain
-- The poster is clearly a recruiter, headhunter, or HR professional
-- The post is about hiring/building a team rather than solving the poster's own operational problem
-- The post is a general opinion piece about AI trends with no concrete personal business problem
+- The poster is a job seeker looking for work (e.g. "open to work", "seeking opportunities", "hire me", "my resume")
+- The post is from an AI company, software vendor, or automation agency promoting their own product or services (competitors)
+- The post appears to be AI-generated promotional content or a general thought-leadership piece with no real personal pain
+- The post is a generic opinion piece or tutorial about AI trends with no concrete personal business problem
 
 Score HIGH if:
-- A business owner, founder, or operator is expressing a specific, personal operational pain point that automation could solve
-- Someone is directly asking for help automating their own workflow or process (first-person)
-- A decision-maker is frustrated with manual work and appears open to solutions
+- A business owner, founder, or operator is expressing a specific, personal operational pain point that AI automation, LLMs, or agents could solve
+- A technical person, founder, or hiring manager is posting an opportunity, job, or project specifically hiring for AI automation, AI agents, or Generative AI
+- Someone is directly asking for tool recommendations, AI expertise, or help automating their workflow
 
 Score MEDIUM if:
-- A business professional is discussing pain points that suggest automation could help, but isn't directly asking for it
-- Someone is asking for tool recommendations for their own use case
+- A professional is discussing AI/automation pain points generally suggesting AI could help, but isn't explicitly asking for it
 
 Score LOW if:
-- None of the above apply, it's a student, researcher, or casual mention
+- None of the above apply, it's a student, researcher, casual mention, or someone just looking for a job
 
 TASK 2 — EXTRACT:
 - business_context: What their business/role appears to be (1 sentence max, use poster_headline as context)
-- pain_point: The specific problem or frustration they mentioned in the post (1 sentence, be specific)
+- pain_point: The specific problem, need, or opportunity they mentioned in the post (1 sentence, be specific)
 
 TASK 3 — GENERATE COMMENT REPLY:
 Write a comment reply Muhammad could post directly on their LinkedIn post.
 Rules:
 - 2-3 sentences maximum
 - Reference something SPECIFIC from their post (show you read it)
-- Position Muhammad naturally as someone who has solved this exact type of problem
+- Position Muhammad naturally as someone who has solved this exact type of problem or can fulfill their AI requirement
 - End with a soft open question or invitation, NOT a hard sell
 - Sound like a genuine human response, not a sales pitch
 - Do NOT mention prices, packages, or "services"
@@ -256,9 +225,9 @@ Write a LinkedIn DM Muhammad could send after connecting with this person.
 Rules:
 - 4-5 sentences maximum
 - Open by referencing their specific post (show you actually read it, quote a phrase if possible)
-- Share one relevant result Muhammad has achieved (specific, not vague)
-- Ask ONE qualifying question about their specific situation
-- Zero pressure — end with a soft next step like "happy to share how I did it" or "would love to hear more about your situation"
+- Share one relevant result or AI expertise Muhammad has achieved (specific, not vague)
+- Ask ONE qualifying question about their specific situation or AI stack
+- Zero pressure — end with a soft next step like "happy to share how I approached a similar AI project" or "would love to hear more about what you're building"
 
 Return ONLY valid JSON, no markdown, no preamble:
 {{
@@ -271,38 +240,27 @@ Return ONLY valid JSON, no markdown, no preamble:
 }}"""
 
 
-JOB_POST_SIGNALS = [
-    "we're looking for a",
-    "we are looking for a",
-    "we're hiring",
-    "we are hiring",
-    "now hiring",
-    "read the full jd",
-    "full job description",
-    "apply now",
-    "dm me to apply",
-    "send your cv",
-    "send your resume",
-    "job opening",
-    "job opportunity",
-    "open position",
-    "join our team",
-    "we need a senior",
-    "we need an experienced",
-    "looking for a senior",
-    "looking for an experienced",
-    "looking for someone who can",
-    "hiring manager",
-    "in the comments below",  # often recruitment CTA pattern
+JOB_SEEKER_SIGNALS = [
+    "open to work",
+    "looking for my next role",
+    "looking for a new role",
+    "looking for a job",
+    "hire me",
+    "seeking new opportunities",
+    "available for work",
+    "laid off",
+    "my resume",
+    "looking for a position",
+    "actively looking",
 ]
 
 
-def is_job_post(content: str) -> bool:
-    """Quick pre-filter: reject obvious job postings before spending a Groq call."""
+def is_job_seeker(content: str) -> bool:
+    """Quick pre-filter: reject obvious job seekers before spending a Groq call."""
     lower = content.lower()
-    matched = [sig for sig in JOB_POST_SIGNALS if sig in lower]
+    matched = [sig for sig in JOB_SEEKER_SIGNALS if sig in lower]
     if matched:
-        print(f'[{datetime.now()}] [FILTER] Rejected job post — matched: {matched[0]}')
+        print(f'[{datetime.now()}] [FILTER] Rejected job seeker — matched: {matched[0]}')
         return True
     return False
 
@@ -439,15 +397,15 @@ def main():
                 print(f'[{datetime.now()}] Already seen: {url[:70]}')
                 continue
 
-            # Pre-filter: reject job posts without spending a Groq call
-            if is_job_post(post['content']):
+            # Pre-filter: reject job seekers without spending a Groq call
+            if is_job_seeker(post['content']):
                 mark_as_seen(
                     supabase_client,
                     url=url,
                     poster_name=post['poster_name'],
                     snippet=post['content'][:500],
                     query=query_obj['query'],
-                    category='filtered_job_post',
+                    category='filtered_job_seeker',
                 )
                 continue
 
