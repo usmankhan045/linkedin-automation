@@ -191,22 +191,23 @@ TASK 1 — QUALIFY:
 Is this a genuine potential lead for AI automation, GenAI, or Agentic AI services? Score it:
 
 IMMEDIATELY score LOW (do not proceed to HIGH/MEDIUM) if ANY of these are true:
-- The poster is a job seeker looking for work (e.g. "open to work", "seeking opportunities", "hire me", "my resume")
-- The post is from an AI company, software vendor, or automation agency promoting their own product or services (competitors)
-- The post appears to be AI-generated promotional content or a general thought-leadership piece with no real personal pain
+- The poster is a fellow builder, developer, or engineer sharing their own "build journey", lessons learned, or a project they already completed (e.g., "how I built this AI agent", "the biggest mistake I made building"). We only want potential clients, not peers sharing stories.
+- The poster is a job seeker looking for work (e.g. "open to work", "seeking opportunities", "hire me", "my resume").
+- The post is from an AI company, software vendor, or automation agency promoting their own product or services (competitors).
+- The post appears to be AI-generated promotional content or a general thought-leadership piece with no real personal pain.
 - The post is a generic opinion piece, tutorial, educational content, or celebrating a personal achievement/certificate.
 - The post is a standard full-time employment job listing (we want to avoid full-time jobs, focus on clients/projects).
 
 Score HIGH if:
-- A business owner, founder, or operator is expressing a specific, personal operational pain point that AI automation, LLMs, or agents could solve
-- A technical person, founder, or hiring manager is posting a freelance or consulting project specifically looking for AI automation/GenAI help or agents (prioritize project/freelance over full time roles, we are looking for clients).
-- Someone is directly asking for tool recommendations, AI expertise, or help automating their workflow
+- A business owner, founder, or operator is currently facing a specific, personal operational pain point that AI automation, LLMs, or agents could solve.
+- A technical person, founder, or hiring manager is explicitly posting a freelance or consulting project looking to hire for AI automation/GenAI help or agents.
+- Someone is directly asking for tool recommendations, AI expertise, or help automating their current workflow.
 
 Score MEDIUM if:
-- A professional is discussing AI/automation pain points generally suggesting AI could help, but isn't explicitly asking for it
+- A potential client (not a fellow developer) is discussing current AI/automation pain points their business is facing, suggesting AI could help, but isn't explicitly asking to hire yet.
 
 Score LOW if:
-- None of the above apply, it's a student, researcher, casual mention, or someone just looking for a job
+- None of the above apply, it's a student, researcher, casual mention, or someone just looking for a job.
 
 TASK 2 — EXTRACT:
 - business_context: What their business/role appears to be (1 sentence max, use poster_headline as context)
