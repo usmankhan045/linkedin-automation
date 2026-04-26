@@ -43,22 +43,22 @@ POSTED_LIMIT = '24h'
 SEARCH_QUERIES = [
     {
         "query": '"AI automation" AND ("looking for" OR "help" OR "hiring" OR "need")',
-        "category": "ai_automation_opportunity",
+        "category": "asking_for_help",
         "label": "AI Automation Opportunities"
     },
     {
         "query": '("generative AI" OR "LLM" OR "RAG") AND ("project" OR "developer" OR "hiring" OR "expert" OR "need")',
-        "category": "gen_ai_opportunity",
+        "category": "asking_for_help",
         "label": "GenAI/LLM/RAG Opportunities"
     },
     {
         "query": '("agentic AI" OR "AI agents" OR "AI chatbot") AND ("hiring" OR "looking for" OR "help")',
-        "category": "agentic_ai_opportunity",
+        "category": "asking_for_help",
         "label": "Agentic AI / Chatbot Opportunities"
     },
     {
         "query": '("AI automation" OR "generative AI" OR "AI agents") AND ("struggling" OR "problem" OR "recommend" OR "advice")',
-        "category": "ai_automation_problem",
+        "category": "describing_problem",
         "label": "AI Problems or Recommendations"
     }
 ]
@@ -409,7 +409,7 @@ def main():
                     poster_name=post['poster_name'],
                     snippet=post['content'][:500],
                     query=query_obj['query'],
-                    category='filtered_job_seeker',
+                    category='filtered_job_post',
                 )
                 continue
 
