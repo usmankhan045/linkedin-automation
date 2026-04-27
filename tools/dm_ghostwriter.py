@@ -110,10 +110,27 @@ PERSONA_PROMPTS: dict[str, str] = {
         '- Is not too long (2-3 sentences max)\n\n'
         'Reply only with the comment text ready to paste — no explanation, no labels.'
     ),
+    'draft': (
+        'You are an intelligent, context-aware ghostwriter drafting a LinkedIn DM for Muhammad.\n'
+        'The user has provided an input that contains Context (relationship, technical level, background) '
+        'and the Original Message from the other person.\n\n'
+        'Instructions:\n'
+        '1. Automatically analyze the tone of their message and match it. '
+        'If they are in a good mood/enthusiastic, add a touch of professional humor. If formal, stay formal.\n'
+        '2. Adapt to their technical level based on the context provided. '
+        'If non-technical, keep it simple. If technical, use appropriate terminology.\n'
+        '3. Be concise and straight to the point. Do not drag things out. 2-4 sentences max.\n'
+        '4. Provide exactly ONE clear next step based on the context.\n'
+        '5. MUST LOOK PERFECTLY HUMAN. Absolutely no hint of AI. No bullet points, no dashes, no rigid or corporate words (like "delve", "furthermore"). Write exactly like a real human typing a quick DM on their phone.\n\n'
+        'User Input (Context + Message):\n'
+        '"{original_message}"\n\n'
+        'Reply only with the DM text — no explanation, no labels.'
+    ),
 }
 
 HELP_TEXT = (
     '❓ Command not recognized. Available commands:\n'
+    '`/draft Context: [context] Message: [message]` — Smart reply (auto tone & context)\n'
     '`/biz [message]`     — Reply to a business owner\n'
     '`/tech [message]`    — Reply to a developer/engineer\n'
     '`/follow [message]`  — Follow up with a post commenter\n'
@@ -162,7 +179,7 @@ def format_draft_reply(command: str, draft: str, truncated: bool = False) -> str
         f'{draft}{suffix}\n\n'
         f'---\n'
         f'📋 Copy above ↑\n'
-        f'🔄 `/retry` to regenerate | `/biz`, `/tech`, `/follow`, `/reply`, `/comment [text]` for a new draft'
+        f'🔄 `/retry` to regenerate | `/draft`, `/biz`, `/tech`, `/follow`, `/reply`, `/comment` for a new draft'
     )
 
 
@@ -217,10 +234,10 @@ def main():
                     )
                 return
 
-            # Parse /biz /tech /follow /reply /comment
+            # Parse /biz /tech /follow /reply /comment /draft
             command = None
             their_message = ''
-            for cmd in ('biz', 'tech', 'follow', 'reply', 'comment'):
+            for cmd in ('biz', 'tech', 'follow', 'reply', 'comment', 'draft'):
                 prefix = f'/{cmd}'
                 if content.lower().startswith(prefix):
                     their_message = content[len(prefix):].strip()
