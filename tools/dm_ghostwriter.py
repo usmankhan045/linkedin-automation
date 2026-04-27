@@ -9,8 +9,7 @@ process. Recommended hosting: Railway (free tier), Fly.io, or any VPS.
 
 Handles two Discord channels:
   #ghostwriter (DISCORD_GHOSTWRITER_CHANNEL_ID)
-    Commands: /biz /tech /follow /reply [message] — generates a DM reply draft
-    Command:  /retry — regenerates last draft for the current user
+    Slash Commands: /draft, /biz, /tech, /follow, /reply, /comment, /retry
   #stories (DISCORD_STORIES_CHANNEL_ID)
     Any non-command message → story_intake.handle_story_submission()
 
@@ -24,6 +23,7 @@ import sys
 import time
 
 import discord
+from discord import app_commands
 from groq import Groq
 from dotenv import load_dotenv
 
@@ -131,18 +131,6 @@ PERSONA_PROMPTS: dict[str, str] = {
     ),
 }
 
-HELP_TEXT = (
-    '❓ Command not recognized. Available commands:\n'
-    '`/draft Context: [context] Message: [message]` — Smart reply (auto tone & context)\n'
-    '`/biz [message]`     — Reply to a business owner\n'
-    '`/tech [message]`    — Reply to a developer/engineer\n'
-    '`/follow [message]`  — Follow up with a post commenter\n'
-    '`/reply [message]`   — Generic reply (any context)\n'
-    '`/comment [post]`    — Generate a post comment\n'
-    '`/retry`             — Regenerate the last draft'
-)
-
-
 # ── Groq ───────────────────────────────────────────────────────────────────────
 
 def generate_dm_reply(groq_client: Groq, command: str, their_message: str) -> str:
@@ -182,7 +170,7 @@ def format_draft_reply(command: str, draft: str, truncated: bool = False) -> str
         f'{draft}{suffix}\n\n'
         f'---\n'
         f'📋 Copy above ↑\n'
-        f'🔄 `/retry` to regenerate | `/draft`, `/biz`, `/tech`, `/follow`, `/reply`, `/comment` for a new draft'
+        f'🔄 `/retry` to regenerate | Use the `/` menu for a new draft'
     )
 
 
@@ -194,6 +182,72 @@ def main():
     intents = discord.Intents.default()
     intents.message_content = True
     client = discord.Client(intents=intents)
+    tree = app_commands.CommandTree(client)
+
+    async def handle_slash_command(interaction: discord.Interaction, command: str, their_message: str):
+        if interaction.channel_id != GHOSTWRITER_CHANNEL_ID:
+            await interaction.response.send_message(f"Please use this command in <#{GHOSTWRITER_CHANNEL_ID}>.", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+        
+        user_id = str(interaction.user.id)
+        was_truncated = len(their_message) > 2000
+        
+        try:
+            draft = generate_dm_reply(groq_client, command, their_message)
+            last_commands[user_id] = (command, their_message)
+            await interaction.followup.send(format_draft_reply(command, draft, was_truncated))
+        except Exception as e:
+            print(f"[ERROR] Groq API error: {e}")
+            await interaction.followup.send('⚠️ Groq API is temporarily unavailable. Try again in a moment.')
+
+    @tree.command(name="draft", description="Smart reply with context and auto tone matching")
+    @app_commands.describe(context="Optional context (e.g. they are non-technical)", message="Their message to you")
+    async def slash_draft(interaction: discord.Interaction, message: str, context: str = ""):
+        input_text = f"Context: {context} Message: {message}" if context else message
+        await handle_slash_command(interaction, "draft", input_text)
+
+    @tree.command(name="biz", description="Draft a DM response to a business inquiry")
+    async def slash_biz(interaction: discord.Interaction, message: str):
+        await handle_slash_command(interaction, "biz", message)
+
+    @tree.command(name="tech", description="Draft a DM response to a technical question")
+    async def slash_tech(interaction: discord.Interaction, message: str):
+        await handle_slash_command(interaction, "tech", message)
+
+    @tree.command(name="follow", description="Draft a DM to send to a new follower")
+    async def slash_follow(interaction: discord.Interaction, message: str):
+        await handle_slash_command(interaction, "follow", message)
+
+    @tree.command(name="reply", description="Draft a generic reply to a message")
+    async def slash_reply(interaction: discord.Interaction, message: str):
+        await handle_slash_command(interaction, "reply", message)
+
+    @tree.command(name="comment", description="Draft a human-like comment for a LinkedIn post")
+    async def slash_comment(interaction: discord.Interaction, post: str):
+        await handle_slash_command(interaction, "comment", post)
+
+    @tree.command(name="retry", description="Regenerate your last generated draft")
+    async def slash_retry(interaction: discord.Interaction):
+        if interaction.channel_id != GHOSTWRITER_CHANNEL_ID:
+            await interaction.response.send_message(f"Please use this command in <#{GHOSTWRITER_CHANNEL_ID}>.", ephemeral=True)
+            return
+
+        user_id = str(interaction.user.id)
+        prev = last_commands.get(user_id)
+        if not prev:
+            await interaction.response.send_message('No previous command found in this session. Send a new command to start.', ephemeral=True)
+            return
+            
+        await interaction.response.defer()
+        command, their_message = prev
+        try:
+            draft = generate_dm_reply(groq_client, command, their_message)
+            formatted = format_draft_reply(command, draft).replace('**DM Draft', '**DM Draft (retry)').replace('**DM Draft (retry)(', '**DM Draft (retry) (')
+            await interaction.followup.send(formatted)
+        except Exception:
+            await interaction.followup.send('⚠️ Groq API is temporarily unavailable. Try again in a moment.')
 
     @client.event
     async def on_ready():
@@ -201,79 +255,33 @@ def main():
         print(f'[{datetime.now()}] Bot online: {client.user}')
         print(f'  Ghostwriter channel ID : {GHOSTWRITER_CHANNEL_ID}')
         print(f'  Stories channel ID     : {STORIES_CHANNEL_ID}')
-        if GHOSTWRITER_CHANNEL_ID == 0 or STORIES_CHANNEL_ID == 0:
-            print('[WARN] One or more channel IDs are 0 — check your .env')
+        
+        # Try to sync slash commands to the specific guild instantly using the channel ID from .env
+        ghost_channel = client.get_channel(GHOSTWRITER_CHANNEL_ID)
+        if ghost_channel and hasattr(ghost_channel, 'guild'):
+            guild = ghost_channel.guild
+            tree.copy_global_to(guild=guild)
+            await tree.sync(guild=guild)
+            print(f'[{datetime.now()}] Successfully synced slash commands instantly to server: {guild.name}')
+        else:
+            await tree.sync()
+            print(f'[{datetime.now()}] Synced slash commands globally (might take some time to appear)')
 
     @client.event
     async def on_message(message: discord.Message):
         if message.author.bot:
             return
 
-        # ── #ghostwriter channel ───────────────────────────────────────────────
+        # ── #ghostwriter channel (fallback for people using old text commands) ──
         if message.channel.id == GHOSTWRITER_CHANNEL_ID:
             content = message.content.strip()
-            user_id = str(message.author.id)
-
-            # /retry — regenerate last command for this user
-            if content.lower() == '/retry':
-                prev = last_commands.get(user_id)
-                if not prev:
-                    await message.channel.send(
-                        'No previous command found in this session. Send a new command to start.'
-                    )
-                    return
-                command, their_message = prev
-                await message.channel.send('Regenerating...')
-                try:
-                    draft = generate_dm_reply(groq_client, command, their_message)
-                    await message.channel.send(
-                        format_draft_reply(command, draft)
-                        .replace('**DM Draft', '**DM Draft (retry)')
-                        .replace('**DM Draft (retry)(', '**DM Draft (retry) (')
-                    )
-                except Exception:
-                    await message.channel.send(
-                        '⚠️ Groq API is temporarily unavailable. Try again in a moment.'
-                    )
-                return
-
-            # Parse /biz /tech /follow /reply /comment /draft
-            command = None
-            their_message = ''
-            for cmd in ('biz', 'tech', 'follow', 'reply', 'comment', 'draft'):
-                prefix = f'/{cmd}'
-                if content.lower().startswith(prefix):
-                    their_message = content[len(prefix):].strip()
-                    command = cmd
-                    break
-
-            if command is None:
-                if content.startswith('/'):
-                    await message.channel.send(HELP_TEXT)
-                return
-
-            if not their_message:
-                await message.channel.send(
-                    f'Please include the original LinkedIn message after the command.\n'
-                    f'Example: `/{command} Hey, I saw your post about automation...`'
-                )
-                return
-
-            was_truncated = len(their_message) > 2000
-            await message.channel.send('Drafting reply...')
-
-            try:
-                draft = generate_dm_reply(groq_client, command, their_message)
-                last_commands[user_id] = (command, their_message)
-                await message.channel.send(format_draft_reply(command, draft, was_truncated))
-            except Exception:
-                await message.channel.send(
-                    '⚠️ Groq API is temporarily unavailable. Try again in a moment.'
-                )
+            if content.startswith('/'):
+                await message.channel.send("⚠️ I've upgraded! Please click the command from the Discord `/` popup menu instead of typing it as text.")
+            return
 
         # ── #stories channel ───────────────────────────────────────────────────
         elif message.channel.id == STORIES_CHANNEL_ID:
-            # Ignore command-style messages (e.g. /story retry ...)
+            # Ignore command-style messages
             if not message.content.startswith('/'):
                 await story_intake.handle_story_submission(message, groq_client, SPREADSHEET_ID)
 
