@@ -1,9 +1,18 @@
 """
-generate_posts.py — Sunday batch post generator.
+generate_posts.py — Sunday batch post generator (v2).
 
 Reads the next 5 pending topics from the Google Sheets 'Topic Bank', generates a
-LinkedIn post for each using Groq (llama-3.3-70b-versatile), then extracts bullet
-points (for infographic images) and a headline, and writes everything back to Sheets.
+LinkedIn post for each using a single Groq call (llama-3.3-70b-versatile), then
+writes back: post_text, bullet_points, headline, audience, status='pending',
+and scheduled_date (next Mon-Fri).
+
+v2 changes vs v1:
+  - Single Groq call per post (was 3 calls — post + bullets + headline).
+    Estimated ~3,400 tokens per post vs ~4,500 previously.
+  - Richer prompt system: USMAN_CONTEXT, POST_STRUCTURE, RULES, SELF_CHECK.
+  - Model runs its own self-check before outputting; rejects posts that fail.
+  - 'what_makes_this_real' quality signal logged to stdout for monitoring.
+  - Stricter banned-word / banned-phrase enforcement baked into the system prompt.
 
 Scheduling: runs every Sunday via .github/workflows/weekly_generation.yml
 Depends on: tools/sheets_helper.py
@@ -20,7 +29,7 @@ import os
 import sys
 import json
 import time
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 
 import pytz
 from dotenv import load_dotenv
@@ -36,158 +45,263 @@ SPREADSHEET_ID = os.environ['GOOGLE_SHEETS_SPREADSHEET_ID']
 DISCORD_WEBHOOK = os.getenv('DISCORD_WEBHOOK_CONFIRMATIONS')
 
 
-# ─── Prompts ──────────────────────────────────────────────────────────────────
+# ─── Full Context Block ───────────────────────────────────────────────────────
 
-MASTER_SYSTEM_PROMPT = """You are ghostwriting LinkedIn posts for Muhammad Usman, a software engineer from Charsadda, Pakistan, and a COMSATS Abbottabad graduate who builds AI automation systems. Write in first person as Usman.
+USMAN_CONTEXT = """
+IDENTITY:
+Muhammad Usman. 23 years old. COMSATS Abbottabad CS graduate.
+Based in Charsadda, Khyber Pakhtunkhwa, Pakistan.
+Freelance AI Automation Engineer on Upwork ($18/hr) and Fiverr.
+Building internet businesses and personal brand in parallel.
 
-Usman posts on LinkedIn five days a week using two distinct personas. The category prompt will tell you which persona to use. Read it carefully before writing.
+EXPERTISE — only claim what is real:
+- n8n workflow automation
+- Python automation scripts
+- RAG pipelines with Supabase pgvector + Groq/OpenAI embeddings
+- AI chatbots using Groq (llama-3.3-70b), OpenAI, Anthropic APIs
+- Playwright for headless browser automation and HTML-to-image rendering
+- Agentic systems (learning phase — LangGraph, OpenAI Agents SDK)
+- generative ai langChain
+- Flutter + Firebase mobile development (prior background)
+- Supabase (PostgreSQL, Storage, Edge Functions)
+- Discord bots with discord.py
 
-SENTENCE SUBJECTS — this is the most important rule:
-Most sentences should have the situation, the tool, the problem, the decision, or the outcome as the subject — NOT "I."
-Bad (diary mode): "I tried using n8n. I hit a rate limit. I switched to Python. I learned that..."
-Good (vivid): "The n8n rate limit hit at 2am, mid-run." or "Three weeks of manual exports. One script ended it."
-"I" can appear in the post — but aim for no more than 2-3 sentences in the entire post where "I" is the subject.
-The test: read your draft and count how many sentences start with "I" or use "I" as the subject. If it's more than 3, rewrite those sentences to make the situation, tool, or outcome the subject instead.
+REAL PROJECTS (use as grounding material):
+- This LinkedIn automation engine: Python + GitHub Actions + Groq +
+  Playwright + Supabase + Google Sheets + Discord. Zero cost. Self-built.
+- Upwork AI automation profile — first clients, building case studies
+- Fiverr n8n specialist gig (low-competition keyword positioning)
+- Previously:
+- Blood Donation App: final year project, multi-role, Google Maps, FCM
 
-HOOK APPROACH (persona-specific — see category prompt for the specific opening style):
-The hook must feel like the first line of a real conversation, not a marketing headline.
-LinkedIn shows roughly 210 characters before "see more" — write a hook strong enough to compel a click, but do not mechanically restrict yourself to a character count.
-The Founder opens with a relatable business pain or a specific operational result a business owner immediately recognizes.
-Both personas avoid soft openers: no "I've been thinking about...", no "Here's something interesting...", no warm-up sentences of any kind.
-The goal is curiosity and authenticity — not the formula "[number]. [problem]. [consequence]."
+REAL CONSTRAINTS (what makes posts authentic):
+- Building on free tiers: Groq free, Supabase free, GitHub Actions free
+- Pakistan infrastructure: power cuts happen, 50ms+ latency to Western servers
+- PKT is UTC+5 — 5 hours ahead of London, 10 ahead of New York
+  This means building at night for clients who are sleeping
+- No enterprise budget, no team — solo builder
+- Self-taught most of agentic AI knowledge post-graduation
+- Charsadda is not a tech hub — building world-class systems from a tier-3 city
 
-ENDING:
-End the post with ONE specific open question the target audience would actually want to answer. Not "What do you think?" — something tied to the specific story.
-Final line: 3-5 hashtags only.
-Do NOT force a contrarian sign-off. If one fits naturally, use it. If not, skip it.
+TARGET AUDIENCES:
+Engineer (Mon/Wed/Fri): AI developers, n8n users, automation engineers,
+  solo builders, technical freelancers learning to build systems
+Founder (Tue/Thu): SME owners, solopreneurs, startup founders who want
+  automation but cannot code. ZERO technical jargon for this audience.
 
-TONE AND REGISTER:
-Write the way a software engineer explains something to another engineer at a meetup — not the way someone crafts a LinkedIn post.
-Use contractions everywhere: "it's", "didn't", "wasn't", "couldn't", "that's", "I've". Formal constructions like "it was not" or "I did not" kill the voice.
-Short sentences are usually better. Fragments are fine and often stronger: "Seven workflows. All down." or "500 lines. 24 hours."
-Vary the rhythm — a very short sentence after a longer one creates punch.
-Avoid corporate filler language. These phrases are dead weight and must never appear:
-  "end result", "the system performed well", "running smoothly", "streamlined", "handle X and Y",
-  "has been worth it", "proved to be", "in terms of", "leveraging", "utilize", "moving forward",
-  "final straw", "all in all", "at the end of the day"
-The specific always beats the vague. "Three clients couldn't open their Monday reports" beats "client data was impacted."
-Include one detail that only someone who actually lived through this would know — not the lesson, the specific texture.
-
-ABSOLUTE BANS — never use any of the following under any circumstances:
-Banned words: game-changer, revolutionary, seamless, cutting-edge, groundbreaking, rapidly evolving, transformative, innovative
-Banned template phrases — these make every post sound identical:
-  "Here's what I learned:"
-  "Here's what actually happened:"
-  "Nobody told me this:"
-  "This is what changed everything:"
-  "One surprising thing was"
-  "What actually worked was"
-  "I'm not saying [X] is bad. I'm saying [Y] is better when [Z]"
-  "I'm not saying X. I'm saying Y."
-  "Follow this exact structure"
-Banned phrases: "Here is the thing:", "Let me be honest:", "At its core:", "In today's world:", "The reality is:", "It's not just X, it's Y"
-File names: never mention file names in the post body (sheets_helper.py, generate_posts.py, main.py, etc.) — describe what the code does, not what it's called
-Banned punctuation: em dashes — use periods and commas instead
-Question marks: no more than one in the entire post
-Emoji: none anywhere in the post body or hashtags
-Lists: no bullet points, no numbered lists, no dashes used as list markers
+VOICE FINGERPRINT:
+- Mentions specific numbers: tokens, hours, dollars, lines of code, days
+- Names exact tools and models: llama-3.3-70b not "an AI model"
+- Acknowledges Pakistani constraints without complaining about them
+- Never positions as guru — positions as fellow builder who figured something out
+- Dry humour occasionally: "It worked. I don't know why. Moving on."
+- Sentences are short. Often fragments. Like this.
+- The situation is the subject, not the narrator.
+  BAD: "I tried n8n and hit a rate limit"
+  GOOD: "The n8n rate limit hit at 2am, mid-run."
 """
 
+
+# ─── 9.5 Post Structure ───────────────────────────────────────────────────────
+
+POST_STRUCTURE = """
+MANDATORY POST STRUCTURE — follow this exactly, in order:
+
+Line 1:    HOOK — tension without explanation. Under 12 words.
+           The reader must think "wait, what happened?" not understand the situation.
+           The situation is the subject, not Usman.
+           BAD: "I learned something important about n8n this week."
+           GOOD: "The n8n rate limit hit at 2am, mid-run."
+
+Lines 2-3: THE SCENE — specific, grounded, sensory.
+           One real detail that only someone who lived this would know.
+           Name the exact time, the exact tool, the exact failure mode.
+           No generalizing. No "often" or "sometimes" — this specific instance.
+
+Line 4:    THE TURN — what Usman did not expect.
+           Subvert the reader's assumption about where this is going.
+           This is the line people screenshot.
+           BAD: "So I fixed it."
+           GOOD: "The fix was one line. Finding it took 4 hours."
+
+Lines 5-7: THE SUBSTANCE — tool name, exact decision made, real result with number.
+           This is where the value lives. Be specific enough that a developer
+           could replicate the decision. Include: what was tried, what worked,
+           what the outcome was in measurable terms.
+
+Line 8:    THE DEEPER LESSON — one layer below the obvious takeaway.
+           Not "always add error handling." The insight underneath that.
+           BAD: "Lesson: test your code properly."
+           GOOD: "Visual builders abstract failure modes.
+                  Raw code shows you exactly where and why."
+
+Line 9:    THE QUESTION — specific enough that answering it costs the commenter something.
+           Not "what do you think?" — a question that reveals something about them.
+           BAD: "Have you ever had this happen?"
+           GOOD: "What's the most expensive silent failure you've shipped?"
+
+Hashtags:  3 maximum. No more. Place after the question on a new line.
+           Engineer posts: #BuildInPublic + 2 technical ones
+           Founder posts: #Automation + 2 business-outcome ones
+"""
+
+
+# ─── Rules Block ─────────────────────────────────────────────────────────────
+
+RULES = """
+ABSOLUTE RULES — violating any of these fails the post:
+
+LENGTH: 150-280 words. Not characters — words.
+        LinkedIn shows ~210 chars before "see more" — hook must land before that.
+
+BANNED WORDS — never use these under any circumstance:
+game-changer, revolutionary, seamless, cutting-edge, groundbreaking,
+transformative, innovative, leverage, ecosystem, landscape, delve,
+empower, cornerstone, utilize, streamline, synergy, circle back,
+moving forward, at the end of the day, in today's world, it's no secret
+
+BANNED PHRASES — these make every post sound identical:
+"Here's what I learned:"
+"Here's what actually happened:"
+"Nobody told me this:"
+"This is what changed everything:"
+"I'm not saying X. I'm saying Y."
+"Follow this structure:"
+"In today's fast-paced..."
+"Hope this helps!"
+
+BANNED PUNCTUATION:
+- Em dashes (—) anywhere. Use periods instead.
+- More than one question mark in the entire post.
+- Emoji anywhere in the post body.
+- Bullet points or numbered lists in the post body.
+  (bullets go in the IMAGE, not the post text)
+
+"I" AS SUBJECT: Maximum 3 sentences in the entire post where "I" is the subject.
+Count before finishing. If more than 3, rewrite those sentences so the
+tool, situation, or outcome is the subject instead.
+
+FOUNDER POSTS ONLY — HARD CONSTRAINT:
+Zero technical vocabulary. Do not write:
+Python, API, JSON, n8n, script, code, GitHub, LLM, model,
+function, endpoint, node, webhook, cron, or any engineering term.
+Describe the business outcome only. "The system pulls the data" not
+"the Python script calls the API."
+
+FILE NAMES: Never mention file names in post body.
+sheets_helper.py, generate_posts.py — these mean nothing to most readers.
+Describe what the code does, not what it is called.
+"""
+
+
+# ─── Self-Check Rubric ────────────────────────────────────────────────────────
+
+SELF_CHECK = """
+INTERNAL SELF-CHECK — do this before producing output. Do not output the check itself.
+
+After drafting the post, verify each item:
+
+[ ] Hook is under 12 words
+[ ] Hook creates a question in the reader's mind — does NOT explain the situation
+[ ] The situation/tool/outcome is the subject of most sentences, not "I"
+[ ] "I" appears as subject 3 times or fewer in the entire post
+[ ] One specific number exists (tokens, hours, $, lines, days, percentage)
+[ ] At least one exact tool name is mentioned (not "an AI tool" — the actual name)
+[ ] No banned words from the list appear anywhere
+[ ] No em dashes anywhere
+[ ] No emoji anywhere
+[ ] No bullet points in the post body
+[ ] The turn on line 4 subverts an expectation — it is not just the next event
+[ ] The deeper lesson goes one layer below the obvious takeaway
+[ ] The closing question would cost the commenter something to answer honestly
+[ ] Post is between 150-280 words
+[ ] Founder posts contain zero technical vocabulary (if applicable)
+[ ] Contains one detail that only someone who lived this situation would know
+
+If any item fails: rewrite that specific part before outputting.
+Do not output a post that fails the self-check.
+"""
+
+
+# ─── Category Prompts ────────────────────────────────────────────────────────
+
 CATEGORY_PROMPTS = {
-    'build-log': (
-        "PERSONA: THE ENGINEER (Monday / Wednesday / Friday)\n"
-        "Voice: First-person, transparent, in the trenches. Technical terms like State Management, "
-        "Latency, Refactoring, Cron Job, and API Rate Limit are natural here.\n"
-        "Identity: Usman builds real systems in Pakistan — from Charsadda, studied at COMSATS Abbottabad. "
-        "Mention local reality when it adds texture: power outages, building lean, no enterprise budget. "
-        "These details make the post feel real, not performed.\n\n"
-        "Write a build-log post about something Usman built or is currently building.\n\n"
-        "Open with the specific moment things got interesting — the bug, the failure, the decision that backfired. "
-        "Make the situation the subject: 'The deploy broke at 11pm.' not 'I deployed and it broke at 11pm.' "
-        "Do not open with a motivational setup or a broad claim.\n\n"
-        "Tell the story by describing what happened to the system, the code, the situation — not what 'I' did to it. "
-        "The tool failed. The cron job missed. The client's data was wrong. "
-        "Write from the perspective of someone watching the situation unfold, not performing for an audience.\n\n"
-        "Name the exact tools and numbers as they come up: lines of code, hours spent, scripts, cost. "
-        "Not in a summary — woven into the story as evidence.\n\n"
-        "Be honest about what was harder than expected. Not 'it was challenging' — "
-        "the specific thing that surprised you, in one or two sentences.\n\n"
-        "Keep every paragraph short: one or two sentences. Blank line between every paragraph. "
-        "End with a specific question a fellow engineer would actually want to answer."
-    ),
-    'transformation': (
-        "PERSONA: THE ENGINEER (Monday / Wednesday / Friday)\n"
-        "Voice: First-person, transparent, in the trenches. Technical tool names and engineering concepts are natural.\n"
-        "Identity: Usman builds in Pakistan with real constraints — mention local context when it shaped the work.\n\n"
-        "Write a post about a manual process that is now automated.\n\n"
-        "Open with the specific pain of the old process — the situation, not the narrator. "
-        "'Every Monday morning: three spreadsheets, one broken formula, one missed row.' "
-        "Make the reader feel the weight of the repetition before the exit appears.\n\n"
-        "Do not structure this as [old way] then [new way] then [numbers]. "
-        "Let the solution emerge from the story naturally. Do not announce the pivot. "
-        "Make the work the subject, not the person doing it. The script ran. The error disappeared. The client stopped asking.\n\n"
-        "Name the specific tools, decisions, and numbers as the story moves — "
-        "hours per week, steps eliminated, errors gone. These belong in the story, not in a summary at the end.\n\n"
-        "Include one honest detail about what was harder than expected during the build. "
-        "This is what separates a real post from a marketing case study.\n\n"
-        "No forced contrarian sign-off. End with a reflection or a question tied to the specific story. "
-        "Keep every paragraph short. Blank line between every paragraph."
-    ),
-    'hot-take': (
-        "PERSONA: THE ENGINEER (Monday / Wednesday / Friday)\n"
-        "Voice: A practitioner who has seen things fail in the real world. "
-        "Technical depth is expected — specific tool names, failure modes, engineering tradeoffs.\n"
-        "Identity: Usman builds in Pakistan with real constraints. That perspective gives the take weight.\n\n"
-        "Write a post with a mildly contrarian opinion about AI, automation, or software engineering.\n\n"
-        "Open with the popular belief stated plainly. No hedging, no 'many people think'. "
-        "Just the conventional wisdom as if it's obviously true. Let the reader agree for one second.\n\n"
-        "Then challenge it with a real experience — a specific situation where the belief caused problems, "
-        "produced the opposite result, or missed something important. Not theory. A real case.\n\n"
-        "Give the evidence: a tool, a number, a decision that backfired in a specific way.\n\n"
-        "State the correction. Not the opposite extreme — just the more accurate version of what's actually true.\n\n"
-        "Do not label your sections. Do not write 'The nuanced truth is:' or 'Here's my actual take:'. "
-        "Just write the argument. End with a question that invites real pushback. "
-        "Keep every paragraph short. Blank line between every paragraph."
-    ),
-    'behind-scenes': (
-        "PERSONA: THE ENGINEER (Monday / Wednesday / Friday)\n"
-        "Voice: Open the hood while the car is still running. No polish, no announcements.\n"
-        "Identity: Usman builds in Pakistan. Mention real constraints when they shaped the decisions.\n\n"
-        "Write a post about something Usman is actively building right now.\n\n"
-        "Open with what you're building — name the tools, name the problem it solves. Specific and short.\n\n"
-        "Describe the actual current state honestly: what works, what is still broken. Don't clean it up.\n\n"
-        "Name the specific decision you got wrong and had to redo. "
-        "Not 'I made a mistake early on' — the actual decision and what it caused.\n\n"
-        "Show where you're stuck right now or what's still unresolved. "
-        "This is the part that makes other engineers want to help.\n\n"
-        "End with a specific request for input about the exact thing you're wrestling with. "
-        "No lesson. No tidy conclusion. Show the mess. "
-        "Keep every paragraph short. Blank line between every paragraph."
-    ),
-    'founder-roi': (
-        "PERSONA: THE FOUNDER (Tuesday / Thursday)\n"
-        "Voice: Strategic and results-focused. Speaking directly to business owners who are NOT technical.\n"
-        "HARD CONSTRAINT: zero technical vocabulary. Do not write: nodes, JSON, Python, API, n8n, script, "
-        "code, GitHub, Groq, LLM, model, function, endpoint, workflow, or any engineering term. "
-        "If you catch yourself about to use one, stop and describe the business outcome instead.\n\n"
-        "Write a post for non-technical business owners about how intelligent systems save time and money.\n\n"
-        "Open with the specific operational moment every founder recognizes. "
-        "Not an abstract claim — a concrete scenario. "
-        "'Your team is losing 3 hours every Monday to manual data entry.' "
-        "Or: 'Three hours. Every Monday. Just to reconcile last week's numbers.'\n\n"
-        "Make the real cost visible. Translate hours per week into hours per year. "
-        "Name the dollar amount if you can. Make the status quo feel expensive without making the founder feel foolish.\n\n"
-        "Describe the better version in business language only: what gets handled automatically, "
-        "what the team no longer touches, what the operation looks like now. No technical explanation.\n\n"
-        "Include specific results: hours saved, errors eliminated, what the team now does instead. Real numbers.\n\n"
-        "Include one human detail — what the freed-up person actually does with that time. Keep it concrete.\n\n"
-        "End with a question that makes the founder think about their own most expensive manual process. "
-        "Write so the founder feels understood, not sold to. "
-        "Keep every paragraph short. Blank line between every paragraph."
-    ),
+    'build-log': """
+CATEGORY: BUILD LOG (Engineer audience — Mon/Wed/Fri)
+Write from inside the situation. The bug happened. The deploy broke.
+The rate limit hit. Make the tool or system the subject.
+Open with the specific moment things got interesting — not the setup,
+the moment itself.
+Name the exact tools, the exact numbers as they appear in the story.
+Be honest about what took longer than expected. That honesty is what
+separates a real post from a case study.
+""",
+
+    'transformation': """
+CATEGORY: TRANSFORMATION (Engineer audience — Mon/Wed/Fri)
+Write about a manual process that is now automated.
+Open with the specific pain of the old process — not the solution.
+Make the reader feel the weight of the repetition before the exit appears.
+The solution should emerge from the story, not be announced.
+Name specific tools, hours saved, exact steps eliminated.
+Include one honest detail about what was harder than expected during the build.
+""",
+
+    'hot-take': """
+CATEGORY: HOT TAKE (Engineer audience — Mon/Wed/Fri)
+Open with the popular belief stated plainly. No hedging.
+Let the reader agree for one second.
+Then challenge it with a real experience where the belief caused a problem.
+Give the evidence: a specific tool, a number, a decision that backfired.
+State the correction — not the opposite extreme, the more accurate version.
+Do not label sections. Just write the argument.
+""",
+
+    'behind-scenes': """
+CATEGORY: BEHIND THE SCENES (Engineer audience — Mon/Wed/Fri)
+Open with exactly what is being built right now. Name the tools. Name the problem.
+Describe the actual current state: what works, what is still broken.
+Name the specific decision that had to be redone and what it caused.
+Show where things are stuck right now or what is unresolved.
+End with a specific request for input on the exact thing being wrestled with.
+No tidy conclusion. No lesson. Show the mess.
+""",
+
+    'founder-roi': """
+CATEGORY: FOUNDER ROI (Founder audience — Tue/Thu)
+REMINDER: Zero technical vocabulary. Business outcomes only.
+
+Open with the specific operational moment every founder recognizes.
+A concrete scenario, not an abstract claim.
+Make the real cost visible. Hours per week into hours per year. Dollar figure.
+Describe the better version in business language only.
+What gets handled automatically. What the team no longer touches.
+Include specific results: hours saved, errors eliminated, what the team does instead.
+One human detail: what the freed-up person actually does with that time. Concrete.
+End with a question that makes the founder think about their own most expensive manual process.
+""",
 }
 
 VALID_ENGINEER_CATEGORIES = {'build-log', 'transformation', 'hot-take', 'behind-scenes'}
+
+
+# ─── Master System Prompt ────────────────────────────────────────────────────
+
+MASTER_SYSTEM_PROMPT = f"""
+You are ghostwriting LinkedIn posts for Muhammad Usman.
+Write in first person as Usman. This is his voice, his story, his audience.
+
+{USMAN_CONTEXT}
+
+{POST_STRUCTURE}
+
+{RULES}
+
+{SELF_CHECK}
+
+Your output must be a single JSON object. No markdown. No explanation.
+No preamble. Just the JSON.
+"""
 
 
 # ─── Date / scheduling helpers ────────────────────────────────────────────────
@@ -224,146 +338,125 @@ def resolve_audience_and_category(weekday_num: int, sheet_category: str) -> tupl
     return 'engineer', category
 
 
-# ─── Groq helpers ─────────────────────────────────────────────────────────────
+# ─── Single-call generator ────────────────────────────────────────────────────
 
-def _call_groq(client, system_prompt: str, user_message: str, max_tokens: int = 600) -> str:
+def generate_post_single_call(client, topic: str, key_details: str,
+                               category: str, weekday: str, audience: str) -> dict:
     """
-    Call Groq chat completions with one automatic retry on rate limit (429).
+    Single Groq call that produces post + hook + headline + bullets in one shot.
 
-    Raises the underlying exception on the second failure or on any non-429 error.
+    Replaces the previous 3-call approach (post -> bullets -> headline).
+    Estimated tokens: ~3,400 per post (was ~4,500 across 3 calls).
+
+    Returns a dict with keys:
+        post, hook, headline, bullets (list), what_makes_this_real,
+        word_count (int), self_check_passed (bool)
     """
     import groq as groq_lib
 
+    category_prompt = CATEGORY_PROMPTS.get(category, CATEGORY_PROMPTS['build-log'])
+
+    user_prompt = f"""
+{category_prompt}
+
+RAW MATERIAL FOR THIS POST:
+Topic: {topic}
+Key details (what actually happened — do not invent beyond this):
+{key_details}
+
+Scheduled: {weekday} ({audience} audience)
+
+BEFORE WRITING — think through these silently:
+1. What specific moment from the key_details is the most surprising or unexpected?
+   That moment is your hook.
+2. What detail exists here that only someone who lived this would know?
+   That detail goes in lines 2-3.
+3. What did Usman NOT expect?
+   That is line 4 — the turn.
+4. What is the lesson one layer below the obvious one?
+   That is line 8.
+5. What question would cost the reader something honest to answer?
+   That is line 9.
+
+Now write the post following the mandatory structure.
+Run the internal self-check before producing output.
+Rewrite any part that fails the check.
+
+Also produce:
+- headline: 5-7 word infographic title.
+  Same rules as the hook — tension without explanation.
+  BAD: "How I Fixed My Automation Pipeline"
+  GOOD: "Seven Workflows. Two AM. No Alerts."
+
+- bullets: exactly 3-5 bullet points for the branded infographic image.
+  Each bullet is a FRAGMENT of the story — reveals just enough to create
+  a question in the reader's mind. Maximum 9 words each.
+  These appear on the image BEFORE the reader sees the post text.
+  They must create enough curiosity that the reader clicks to read the post.
+  BAD: "Fixed n8n rate limit issue" (complete, no question)
+  GOOD: "Seven workflows. Two AM. No alerts." (scene, raises: what happened?)
+  BAD: "Saved 14 hours per week" (complete fact)
+  GOOD: "14 hours. Gone. One line of code." (how? raises curiosity)
+
+- what_makes_this_real: one sentence describing the specific detail in this
+  post that only someone who actually lived it would know.
+  This is a quality check — if you cannot name it, the post is not authentic enough.
+
+Output ONLY this JSON, nothing else:
+{{
+  "post": "full post text here",
+  "hook": "the literal first line of the post, under 12 words",
+  "headline": "5-7 word infographic title",
+  "bullets": ["bullet one", "bullet two", "bullet three"],
+  "what_makes_this_real": "one sentence naming the unforgeable detail",
+  "word_count": 0,
+  "self_check_passed": true
+}}
+"""
+
     messages = [
-        {'role': 'system', 'content': system_prompt},
-        {'role': 'user', 'content': user_message},
+        {'role': 'system', 'content': MASTER_SYSTEM_PROMPT},
+        {'role': 'user', 'content': user_prompt},
     ]
+
     for attempt in range(2):
         try:
             response = client.chat.completions.create(
                 model=GROQ_MODEL,
                 messages=messages,
-                temperature=0.8,
-                max_tokens=max_tokens,
+                temperature=0.75,
+                max_tokens=1200,
             )
-            return response.choices[0].message.content.strip()
+            break
         except groq_lib.RateLimitError:
             if attempt == 0:
                 print(f"[{datetime.now()}] Groq rate limit hit. Waiting 60s before retry...")
                 time.sleep(60)
             else:
-                raise  # Second attempt also rate-limited — let caller handle
+                raise
 
+    raw = response.choices[0].message.content.strip()
 
-def generate_post_text(client, topic: str, key_details: str, category: str) -> str:
-    """Call 1 of 3: generate the main LinkedIn post body."""
-    category_prompt = CATEGORY_PROMPTS.get(category, CATEGORY_PROMPTS['build-log'])
-    system = MASTER_SYSTEM_PROMPT.strip() + '\n\n' + category_prompt
-    user = (
-        f"Topic: {topic}\n"
-        f"Key details: {key_details}\n\n"
-        "Write the LinkedIn post now."
-    )
-    return _call_groq(client, system, user, max_tokens=600)
-
-
-def extract_bullet_points(client, post_text: str) -> str:
-    """
-    Call 2 of 3: extract 3-5 curiosity-gap bullet points for the infographic image.
-
-    Returns a pipe-separated string, e.g. 'Point one|Point two|Point three'.
-    Raises json.JSONDecodeError if the model returns malformed JSON (caller should catch).
-    """
-    system = "Return ONLY valid JSON, nothing else. No markdown, no backticks, no explanation."
-    user = (
-        "You are writing bullet points for a branded LinkedIn infographic image.\n"
-        "The reader sees the image before reading any post text. These bullets are the hook.\n"
-        "If they don't create curiosity, the reader keeps scrolling.\n\n"
-        "WHAT THESE BULLETS MUST DO:\n"
-        "Each bullet is a fragment of a story — it reveals just enough to make the reader need the rest.\n"
-        "Think of them as overheard sentences from a conversation you walked in on halfway through.\n"
-        "They should create a question in the reader's head, not answer one.\n\n"
-        "THE ONLY RULE THAT MATTERS:\n"
-        "After reading each bullet, the reader must think 'wait — what happened?' or 'wait — how?'\n"
-        "If the bullet fully explains the situation, it has failed. Rewrite it.\n\n"
-        "SPECIFIC RULES:\n"
-        "- Maximum 9 words. Shorter usually stronger.\n"
-        "- Never use file names (sheets_helper.py, generate_posts.py, etc.) — they mean nothing to most readers\n"
-        "- No passive voice ('was replaced', 'can be achieved')\n"
-        "- No filler words ('simple', 'easy', 'powerful', 'better', 'improved')\n"
-        "- Specific numbers, times, and human consequences beat vague claims every time\n"
-        "- Reveal the consequence, hide the cause. Reveal the result, hide the method.\n\n"
-        "EXAMPLES THAT WORK (each one leaves a question open):\n"
-        "- 'Seven workflows. Two AM. No alerts.' — scene set, but what happened next?\n"
-        "- 'Three clients couldn't open Monday's report.' — consequence shown, cause hidden\n"
-        "- 'Rebuilt in a day. Original took three weeks.' — how? why?\n"
-        "- 'The tool that ran fine for months — didn't.' — what tool? what broke?\n"
-        "- 'Free to run. Zero failures since.' — what is it? how?\n"
-        "- 'Three days of work. Four minutes now.' — what changed?\n"
-        "- 'One person freed from the task entirely.' — which task? how?\n"
-        "- '500 lines written overnight. Hasn't broken since.' — context missing — reader needs the post\n\n"
-        "EXAMPLES THAT FAIL (these complete the story — reader has no reason to click):\n"
-        "- 'sheets_helper.py replaced 4 n8n nodes' — file name, jargon, complete fact\n"
-        "- '7 workflows killed at 2am' — status report, no consequence, no question\n"
-        "- 'Zero hosting cost now' — fact without context or tension\n"
-        "- 'Saved 40 hours with Python' — complete, reader has the whole story\n"
-        "- '7 workflows replaced with 3 scripts' — fully explains the transformation\n\n"
-        "POST TO EXTRACT FROM:\n"
-        f"{post_text}\n\n"
-        "Return ONLY a JSON array of 3-5 strings. No markdown, no backticks,\n"
-        "no explanation, no preamble. Just the array.\n"
-        "Example format: [\"bullet one here\", \"bullet two here\", \"bullet three here\"]"
-    )
-    raw = _call_groq(client, system, user, max_tokens=200)
-
-    # Strip accidental markdown code fences
-    raw = raw.strip()
+    # Strip accidental markdown fences
     if raw.startswith('```'):
         lines = raw.splitlines()
-        # Remove first line (```json or ```) and last line (```)
-        inner = lines[1:-1] if lines[-1].strip() == '```' else lines[1:]
-        raw = '\n'.join(inner).strip()
+        raw = '\n'.join(
+            lines[1:-1] if lines[-1].strip() == '```' else lines[1:]
+        ).strip()
 
-    bullets = json.loads(raw)  # raises json.JSONDecodeError on bad output
-    return '|'.join(str(b).strip() for b in bullets[:5])
+    result = json.loads(raw)
 
+    # Validate required keys
+    required = ['post', 'hook', 'headline', 'bullets', 'what_makes_this_real']
+    for key in required:
+        if key not in result:
+            raise ValueError(f"Model output missing key: {key}")
 
-def extract_headline(client, post_text: str) -> str:
-    """
-    Call 3 of 3: extract a punchy max-6-word headline for the infographic title.
+    # Safety net: if model skipped hook field, extract from first post line
+    if not result.get('hook'):
+        result['hook'] = result['post'].split('\n')[0].strip()[:80]
 
-    Returns the headline string directly.
-    """
-    system = "Return ONLY the headline text. No quotes, no explanation."
-    user = (
-        "Write a headline for a branded LinkedIn infographic based on this post.\n\n"
-        "The headline is the first thing the reader sees — before the post, before the bullets. "
-        "It must make them stop scrolling and read the bullets. "
-        "It should feel like the opening of a story, not the summary of one.\n\n"
-        "WHAT THE HEADLINE MUST DO:\n"
-        "- Create a scene or tension that demands resolution — the reader should think 'wait, what happened?'\n"
-        "- Leave something unanswered. A headline that fully explains the situation kills curiosity.\n"
-        "- Use the specific numbers, time, or stakes from the post — these make it feel real\n"
-        "- Maximum 7 words. Fragments and short punchy phrases beat full sentences.\n\n"
-        "WHAT GOOD LOOKS LIKE (scene-first, question-raising):\n"
-        "- 'Seven Workflows. Two AM. No Alerts.' (creates a scene, raises: what happened?)\n"
-        "- 'The Night the Automation Stopped' (incomplete story — what stopped it?)\n"
-        "- 'When the Cron Job Became the Answer' (raises: answer to what?)\n"
-        "- 'Three Days to Find a One-Line Fix' (stakes are clear, how is not)\n"
-        "- 'The Client Couldn't Open Monday's Report' (human consequence, no resolution)\n"
-        "- 'Forty Hours a Month. Gone.' (result shown, method hidden)\n\n"
-        "WHAT BAD LOOKS LIKE (never write these):\n"
-        "- '7 Critical Workflows Failed Overnight' (news headline — answers everything, no curiosity)\n"
-        "- 'How I Automated My LinkedIn Pipeline' (tutorial title — no tension)\n"
-        "- 'State Management Was the Bug' (too technical, too complete)\n"
-        "- 'The Refactor That Cost Three Days' (decent tension but explains itself)\n"
-        "- 'Save Time With Automation' (meaningless filler)\n"
-        "- Any headline ending in 'Failed', 'Broke', 'Crashed' — these are news, not stories\n\n"
-        "NEVER include file names (sheets_helper.py, generate_posts.py, etc.) — they mean nothing to most readers.\n\n"
-        "Return ONLY the headline. No quotes, no explanation.\n\n"
-        f"Post: {post_text}"
-    )
-    return _call_groq(client, system, user, max_tokens=30)
+    return result
 
 
 # ─── Discord ──────────────────────────────────────────────────────────────────
@@ -386,7 +479,7 @@ def send_discord(message: str) -> None:
 def main():
     from groq import Groq
 
-    print(f"[{datetime.now()}] Starting weekly post generation (model: {GROQ_MODEL})")
+    print(f"[{datetime.now()}] Starting weekly post generation v2 (model: {GROQ_MODEL})")
 
     # ── Guard: skip if week already has 5 posts ──────────────────────────────
     existing = sheets.get_week_schedule(SPREADSHEET_ID)
@@ -423,6 +516,7 @@ def main():
     for i, topic_row in enumerate(topics_to_use):
         scheduled_date = weekdays[i]
         weekday_num = scheduled_date.weekday()  # 0=Mon, ..., 4=Fri
+        weekday_name = scheduled_date.strftime('%A')
         audience, category = resolve_audience_and_category(weekday_num, topic_row.get('category', ''))
 
         topic = topic_row.get('topic', '')
@@ -436,29 +530,37 @@ def main():
         )
 
         try:
-            # ── Call 1: post text ─────────────────────────────────────────────
-            post_text = generate_post_text(groq_client, topic, key_details, category)
-            print(f"[{datetime.now()}]   Post text generated ({len(post_text)} chars)")
+            # ── Single call: post + headline + bullets ────────────────────────
+            result = generate_post_single_call(
+                client=groq_client,
+                topic=topic,
+                key_details=key_details,
+                category=category,
+                weekday=weekday_name,
+                audience=audience,
+            )
 
-            # ── Call 2: bullet points ─────────────────────────────────────────
-            try:
-                bullet_points = extract_bullet_points(groq_client, post_text)
-                print(f"[{datetime.now()}]   Bullet points: {bullet_points[:80]}...")
-            except (json.JSONDecodeError, Exception) as e:
-                print(f"[{datetime.now()}]   Bullet extraction failed (non-fatal): {e}")
-                bullet_points = ''
+            post_text = result['post']
+            hook = result['hook']
+            headline = result['headline']
+            bullets = result['bullets']
+            what_makes_this_real = result.get('what_makes_this_real', '')
+            word_count = result.get('word_count', 0)
+            self_check = result.get('self_check_passed', False)
 
-            # ── Call 3: headline ──────────────────────────────────────────────
-            try:
-                headline = extract_headline(groq_client, post_text)
-                print(f"[{datetime.now()}]   Headline: '{headline}'")
-            except Exception as e:
-                print(f"[{datetime.now()}]   Headline extraction failed (non-fatal): {e}")
-                headline = ''
+            bullet_points = '|'.join(str(b).strip() for b in bullets[:5])
+
+            print(f"[{datetime.now()}]   Post generated ({len(post_text)} chars, ~{word_count} words)")
+            print(f"[{datetime.now()}]   Hook: '{hook}'")
+            print(f"[{datetime.now()}]   Headline: '{headline}'")
+            print(f"[{datetime.now()}]   Bullets: {bullet_points[:80]}...")
+            print(f"[{datetime.now()}]   Self-check passed: {self_check}")
+            print(f"[{datetime.now()}]   What makes this real: {what_makes_this_real}")
 
             # ── Write back to Sheets ──────────────────────────────────────────
             sheets.update_row_status(SPREADSHEET_ID, row_index, {
                 'post_text': post_text,
+                'hook': hook,
                 'bullet_points': bullet_points,
                 'headline': headline,
                 'audience': audience,

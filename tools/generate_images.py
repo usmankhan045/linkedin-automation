@@ -87,6 +87,10 @@ def build_html(template_path: Path, post: dict, bullets: list[str], post_number:
 
     Bullet visibility is controlled by injecting 'display:none' into the style
     attribute of bullet_4 / bullet_5 divs when fewer bullets are present.
+
+    {{HOOK}} is the first line of the post text (≤80 chars). If the post dict
+    contains a pre-extracted 'hook' field (from the v2 single-call generator)
+    that is used directly; otherwise it is extracted from post_text.
     """
     html = template_path.read_text(encoding='utf-8')
 
@@ -100,8 +104,13 @@ def build_html(template_path: Path, post: dict, bullets: list[str], post_number:
     }
     audience_key = post.get('audience', 'engineer')
 
+    # Resolve hook: prefer explicit field, fall back to first line of post_text
+    post_text = post.get('post_text', '')
+    hook = post.get('hook', '') or (post_text.split('\n')[0].strip()[:80] if post_text else '')
+
     replacements = {
         '{{CATEGORY_LABEL}}': post.get('category_label', 'BUILD LOG'),
+        '{{HOOK}}':           hook,
         '{{HEADLINE}}':       post.get('headline', ''),
         '{{BULLET_1}}':       padded[0],
         '{{BULLET_2}}':       padded[1],
