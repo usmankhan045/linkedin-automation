@@ -171,6 +171,25 @@ def append_content_backlog(sheet_id: str, data: dict) -> None:
     ws.append_row(row, value_input_option='USER_ENTERED')
 
 
+def get_row_by_index(sheet_id: str, row_index: int) -> Optional[dict]:
+    """
+    Return the Topic Bank row at the given 1-based row_index, or None.
+
+    Used by publish_approved_from_vault() to re-fetch full post data
+    (including post_text) using only the row number stored in the vault file.
+    Row 1 is the header; data starts at row 2.
+    """
+    ws = _open_worksheet(get_sheet_client().open_by_key(sheet_id), TOPIC_BANK_TAB)
+    headers = ws.row_values(1)
+    row_values = ws.row_values(row_index)
+    if not row_values:
+        return None
+    padded = row_values + [''] * max(0, len(headers) - len(row_values))
+    row_dict = dict(zip(headers, padded))
+    row_dict['_row_index'] = row_index
+    return row_dict
+
+
 def get_week_schedule(sheet_id: str) -> list:
     """
     Return all Topic Bank rows whose scheduled_date falls in the upcoming Mon-Fri.

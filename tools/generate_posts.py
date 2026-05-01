@@ -36,6 +36,8 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import tools.sheets_helper as sheets
+import vault_sync
+from watchers.discord_watcher import notify
 
 load_dotenv()
 
@@ -570,13 +572,46 @@ def main():
             print(f"[{datetime.now()}]   Sheets row {row_index} updated — scheduled {scheduled_date}")
             successes += 1
 
+            # ── Vault + Discord ───────────────────────────────────────────────
+            post_preview = post_text[:300] + "..." if len(post_text) > 300 else post_text
+            vault_sync.write_needs_action(
+                title=f"Review post: {topic}",
+                content=(
+                    f"Scheduled: {scheduled_date.strftime('%A, %Y-%m-%d')} ({audience})\n"
+                    f"Category: {category}\n\n"
+                    f"{post_text}\n\n"
+                    f"Image: pending generation"
+                ),
+                source="generate_posts",
+                priority="normal",
+            )
+            notify(
+                "linkedin",
+                f"Draft ready: {topic}",
+                f"**{scheduled_date.strftime('%A %b %d')}** | {audience}\n\n{post_preview}",
+                color="blue",
+            )
+
         except Exception as e:
             print(f"[{datetime.now()}] FAILED for '{topic}': {e}")
             failures += 1
+            notify("errors", "generate_posts.py failed", f"Topic: {topic}\n{e}", color="red", urgent=True)
+            vault_sync.log_action("generate_posts", "error", f"topic={topic!r} error={e}")
 
         # Brief pause between posts to respect Groq rate limits
         if i < len(topics_to_use) - 1:
             time.sleep(2)
+
+    # ── Vault plan ────────────────────────────────────────────────────────────
+    if successes > 0:
+        vault_sync.write_plan(
+            "weekly_content",
+            [
+                "Review 5 drafts in Google Sheets",
+                "Approve each post by changing status to approved",
+                "Confirm schedule: Mon-Fri 12pm PKT",
+            ],
+        )
 
     # ── Summary ───────────────────────────────────────────────────────────────
     summary_line = f"{successes}/{len(topics_to_use)} posts generated. {failures} failed."
@@ -589,6 +624,125 @@ def main():
         "Posts are in Sheets with status=pending. Review and set to 'approved' before Monday."
     )
 
+    # ── Dashboard + final log ─────────────────────────────────────────────────
+    vault_sync.update_dashboard({
+        "last_generation": datetime.now(PKT).isoformat(),
+        "posts_generated": successes,
+        "posts_failed":    failures,
+    })
+    vault_sync.log_action(
+        "generate_posts",
+        "success" if failures == 0 else "partial",
+        f"{successes} generated, {failures} failed",
+    )
+
+
+# ─── Dry-run ──────────────────────────────────────────────────────────────────
+
+def _dry_run():
+    """
+    Test vault + Discord integration without calling Groq or writing to Sheets.
+
+    Reads the first pending topic from Sheets (tests auth), mocks the Groq
+    result, then exercises every new integration point in the same order as
+    the real main() so any misconfiguration surfaces here instead of on Sunday.
+
+    Usage:
+        python tools/generate_posts.py --dry-run
+    """
+    print(f"[{datetime.now()}] ── DRY RUN — vault + Discord integration test ──")
+    print(f"[{datetime.now()}] Vault path: {vault_sync.VAULT_PATH}\n")
+
+    # Real Sheets read so we test auth, but we only look, never write
+    pending = sheets.get_topic_bank(SPREADSHEET_ID)
+    if not pending:
+        print(f"[{datetime.now()}] No pending topics in Sheets — add one topic to Topic Bank and retry.")
+        return
+
+    topic_row      = pending[0]
+    topic          = topic_row.get("topic", "test-topic")
+    scheduled_date = get_next_weekdays()[0]   # use coming Monday
+    audience       = "engineer"
+    category       = "build-log"
+
+    print(f"[{datetime.now()}] Topic: '{topic}' → {scheduled_date.strftime('%A %Y-%m-%d')} ({audience})\n")
+
+    mock_post = (
+        "The rate limit hit at 2am, mid-run.\n\n"
+        "Seven n8n workflows queued. Zero alerts. Just silence.\n"
+        "The retry logic existed. It was checking the wrong status code.\n\n"
+        "Found it at 3am with a print statement. Not a debugger.\n"
+        "Workflows resumed. 14 hours of data recovered.\n\n"
+        "Visual builders abstract failure modes.\n"
+        "Raw code shows you exactly where and why.\n\n"
+        "What is the most expensive silent failure you have shipped?\n\n"
+        "#BuildInPublic #n8n #Automation"
+    )
+
+    # 1. write_needs_action ───────────────────────────────────────────────────
+    print(f"[DRY RUN] 1/5  vault_sync.write_needs_action()")
+    p = vault_sync.write_needs_action(
+        title=f"Review post: {topic}",
+        content=(
+            f"Scheduled: {scheduled_date.strftime('%A, %Y-%m-%d')} ({audience})\n"
+            f"Category: {category}\n\n"
+            f"{mock_post}\n\n"
+            f"Image: pending generation"
+        ),
+        source="generate_posts",
+        priority="normal",
+    )
+    print(f"             → {p.name}\n")
+
+    # 2. notify (per-post) ────────────────────────────────────────────────────
+    print(f"[DRY RUN] 2/5  notify('linkedin', ...)")
+    post_preview = mock_post[:300] + "..." if len(mock_post) > 300 else mock_post
+    ok = notify(
+        "linkedin",
+        f"Draft ready: {topic}",
+        f"**{scheduled_date.strftime('%A %b %d')}** | {audience}\n\n{post_preview}",
+        color="blue",
+    )
+    print(f"             → {'sent to Discord' if ok else 'skipped (DISCORD_WEBHOOK_LINKEDIN not set)'}\n")
+
+    # 3. write_plan ───────────────────────────────────────────────────────────
+    print(f"[DRY RUN] 3/5  vault_sync.write_plan('weekly_content', ...)")
+    p = vault_sync.write_plan(
+        "weekly_content",
+        [
+            "Review 5 drafts in Google Sheets",
+            "Approve each post by changing status to approved",
+            "Confirm schedule: Mon-Fri 12pm PKT",
+        ],
+    )
+    print(f"             → {p.name}\n")
+
+    # 4. update_dashboard ─────────────────────────────────────────────────────
+    print(f"[DRY RUN] 4/5  vault_sync.update_dashboard()")
+    vault_sync.update_dashboard({
+        "last_generation": datetime.now(PKT).isoformat(),
+        "posts_generated": 1,
+        "posts_failed":    0,
+    })
+    print(f"             → Dashboard.md updated\n")
+
+    # 5. error path ───────────────────────────────────────────────────────────
+    print(f"[DRY RUN] 5/5  error path: notify('errors', ...) + log_action()")
+    ok = notify(
+        "errors",
+        "generate_posts.py [DRY RUN TEST]",
+        "This is a test error alert — not a real failure.",
+        color="red",
+        urgent=False,
+    )
+    vault_sync.log_action("generate_posts", "dry_run", f"topic={topic!r} all checks passed")
+    print(f"             → error notify: {'sent' if ok else 'skipped (DISCORD_WEBHOOK_ERRORS not set)'}")
+
+    print(f"\n[{datetime.now()}] Dry run complete. Check vault at: {vault_sync.VAULT_PATH}")
+
 
 if __name__ == '__main__':
-    main()
+    if '--dry-run' in sys.argv:
+        _dry_run()
+    else:
+        main()

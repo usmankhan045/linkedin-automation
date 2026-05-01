@@ -11,12 +11,21 @@ and routes:
 
 If any A or B found: sends summary to Discord #confirmations.
 
+KNOWN LIMITATION — LinkedIn Comments API 403:
+  The LinkedIn socialActions comments endpoint returns HTTP 403 for personal
+  profile posts unless the app has Marketing Developer Platform (MDP) access.
+  MDP requires a company LinkedIn page and a formal application to LinkedIn.
+  This is a platform restriction, NOT a bug. The script handles 403 gracefully:
+  it logs to vault, sends a one-time-per-week Discord #errors alert, and skips
+  the post without retrying (403 will never resolve without MDP access).
+
 Runs every 2 hours Mon–Fri 9 AM–7 PM PKT via comment_triage.yml.
 
 Called by: .github/workflows/comment_triage.yml
-Depends on: tools/db_client.py, tools/sheets_helper.py
+Depends on: tools/db_client.py, tools/sheets_helper.py, vault_sync.py
 Env vars: LINKEDIN_ACCESS_TOKEN, GROQ_API_KEY, GOOGLE_SHEETS_SPREADSHEET_ID,
-          DISCORD_LEADS_WEBHOOK_URL, DISCORD_WEBHOOK_CONFIRMATIONS
+          DISCORD_LEADS_WEBHOOK_URL, DISCORD_WEBHOOK_CONFIRMATIONS,
+          DISCORD_WEBHOOK_ERRORS
 """
 
 import os
@@ -30,9 +39,11 @@ import requests
 from groq import Groq
 from dotenv import load_dotenv
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _REPO_ROOT)
 import tools.db_client as db
 import tools.sheets_helper as sheets
+import vault_sync
 
 load_dotenv()
 
@@ -41,9 +52,82 @@ GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
 SPREADSHEET_ID = os.environ['GOOGLE_SHEETS_SPREADSHEET_ID']
 DISCORD_LEADS_WEBHOOK = os.getenv('DISCORD_LEADS_WEBHOOK_URL', '')
 DISCORD_CONFIRMATIONS_WEBHOOK = os.getenv('DISCORD_WEBHOOK_CONFIRMATIONS', '')
+DISCORD_ERRORS_WEBHOOK = os.getenv('DISCORD_WEBHOOK_ERRORS', '')
 
 BATCH_SIZE = 10
 LOOKBACK_DAYS = 14
+
+# Supabase config key used to throttle the 403 warning to once per week
+_403_WARN_CONFIG_KEY = 'triage_403_last_warned'
+_403_WARN_INTERVAL_DAYS = 7
+
+
+# ── 403 warning helpers ────────────────────────────────────────────────────────
+
+def _should_warn_403() -> bool:
+    """Return True if no 403 warning has been sent in the last 7 days."""
+    try:
+        result = (
+            db.get_client()
+            .table('config')
+            .select('value')
+            .eq('key', _403_WARN_CONFIG_KEY)
+            .execute()
+        )
+        if not result.data:
+            return True
+        last_warned = datetime.fromisoformat(result.data[0]['value'])
+        return (datetime.now(timezone.utc) - last_warned).days >= _403_WARN_INTERVAL_DAYS
+    except Exception:
+        return True  # If the check fails, default to warning
+
+
+def _mark_403_warned() -> None:
+    """Record current timestamp so we don't spam the 403 Discord warning."""
+    try:
+        db.get_client().table('config').upsert(
+            {'key': _403_WARN_CONFIG_KEY, 'value': datetime.now(timezone.utc).isoformat()},
+            on_conflict='key',
+        ).execute()
+    except Exception as e:
+        print(f'[WARN] Could not record 403 warning timestamp: {e}')
+
+
+def _handle_403_once(post_id: str) -> None:
+    """
+    Log 403 to vault and send a one-per-week Discord #errors alert.
+
+    LinkedIn returns 403 on the comments endpoint for personal profiles without
+    Marketing Developer Platform (MDP) access. Retrying will never succeed —
+    this is a permanent platform restriction until MDP access is granted.
+    """
+    vault_sync.log_action(
+        'triage_comments', 'api_403',
+        'LinkedIn comments API requires MDP access. Skipping comment fetch.',
+    )
+
+    if not _should_warn_403():
+        return
+
+    _mark_403_warned()
+
+    msg = (
+        '⚠️ **LinkedIn Comments API — 403 Forbidden**\n'
+        f'Post: `{post_id}`\n\n'
+        'The `/socialActions/comments` endpoint requires **Marketing Developer Platform (MDP)** '
+        'access, which LinkedIn grants only to company pages with an approved application.\n\n'
+        'This is a permanent platform restriction — retrying will not help.\n'
+        '**Impact:** Comment triage returns 0 comments for all personal posts until MDP is granted.\n'
+        '_This warning will not repeat for 7 days._'
+    )
+
+    if DISCORD_ERRORS_WEBHOOK:
+        try:
+            requests.post(DISCORD_ERRORS_WEBHOOK, json={'content': msg}, timeout=10)
+        except Exception as e:
+            print(f'[WARN] Discord errors webhook failed: {e}')
+    else:
+        print('[WARN] DISCORD_WEBHOOK_ERRORS not set — 403 warning not sent to Discord')
 
 
 # ── LinkedIn API ───────────────────────────────────────────────────────────────
@@ -87,7 +171,8 @@ def fetch_linkedin_comments(post_id: str) -> list[dict]:
     if resp.status_code == 401:
         raise ValueError('LinkedIn token expired or invalid (401)')
     if resp.status_code == 403:
-        print(f'[WARN] LinkedIn API 403 for {post_id} — may need elevated API access.')
+        # MDP access required — this will never succeed without it. Do not retry.
+        _handle_403_once(post_id)
         return []
     if resp.status_code == 404:
         print(f'[WARN] LinkedIn API 404 for {post_id} — post not found or deleted.')
