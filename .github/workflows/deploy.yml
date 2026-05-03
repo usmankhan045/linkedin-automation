@@ -1,0 +1,25 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy to droplet
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USER }}
+          key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/linkedin-automation
+            git pull origin main
+            source .venv/bin/activate
+            pip install -r requirements.txt --quiet
+            pm2 restart pm2_ecosystem_do.config.js
+            pm2 save
+            echo "Deploy complete — $(date)"

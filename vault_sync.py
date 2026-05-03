@@ -19,6 +19,7 @@ Set VAULT_PATH in .env to override the default location.
 
 import os
 import shutil
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -29,6 +30,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 VAULT_PATH = Path(os.getenv("VAULT_PATH", r"C:\Users\usman khan\AI_Employee_Vault"))
+GIT_SYNC = os.getenv("GIT_SYNC", "false").lower() == "true"
 
 _SUBDIRS = ["Needs_Action", "Plans", "Pending_Approval", "Approved", "Done", "Logs"]
 
@@ -38,6 +40,40 @@ _SEARCH_DIRS = ["Needs_Action", "Plans", "Pending_Approval", "Approved"]
 # Sentinels that delimit the auto-updated metrics block in Dashboard.md
 _METRICS_START = "<!-- metrics:start -->"
 _METRICS_END   = "<!-- metrics:end -->"
+
+
+# ── Git sync ──────────────────────────────────────────────────────────────
+
+
+def git_sync_vault() -> None:
+    """Push vault changes to git if GIT_SYNC=true and a remote is configured."""
+    if not GIT_SYNC:
+        return
+    try:
+        remote_check = subprocess.run(
+            ["git", "remote", "-v"],
+            cwd=VAULT_PATH,
+            capture_output=True,
+            text=True,
+        )
+        if not remote_check.stdout.strip():
+            return
+        subprocess.run(["git", "add", "-A"], cwd=VAULT_PATH, check=True, capture_output=True)
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        result = subprocess.run(
+            ["git", "commit", "-m", f"vault update {timestamp}"],
+            cwd=VAULT_PATH,
+            capture_output=True,
+            text=True,
+        )
+        # nothing to commit is not an error
+        if result.returncode not in (0, 1):
+            result.check_returncode()
+        if "nothing to commit" not in result.stdout + result.stderr:
+            subprocess.run(["git", "push", "origin", "main"], cwd=VAULT_PATH, check=True, capture_output=True)
+            print("[vault_sync] git sync complete")
+    except Exception as e:
+        print(f"[vault_sync] git sync failed (non-fatal): {e}")
 
 
 # ── Internal helpers ───────────────────────────────────────────────────────
@@ -96,6 +132,7 @@ def write_needs_action(
     )
     path.write_text(frontmatter.dumps(post), encoding="utf-8")
     print(f"[vault_sync] needs_action written → {filename}")
+    git_sync_vault()
     return path
 
 
@@ -156,6 +193,7 @@ def write_pending_approval(action_type: str, details: dict) -> Path:
     )
     path.write_text(frontmatter.dumps(post), encoding="utf-8")
     print(f"[vault_sync] pending_approval written → {filename}")
+    git_sync_vault()
     return path
 
 
@@ -259,6 +297,7 @@ def update_dashboard(metrics: dict) -> None:
 
     dashboard.write_text(text, encoding="utf-8")
     print(f"[vault_sync] dashboard updated ({len(metrics)} metrics)")
+    git_sync_vault()
 
 
 # ── Logging ────────────────────────────────────────────────────────────────
@@ -289,6 +328,7 @@ def log_action(action: str, result: str, details: str = "") -> None:
     with log_file.open("a", encoding="utf-8") as fh:
         fh.write(line)
     print(f"[vault_sync] logged: {action} → {result}")
+    git_sync_vault()
 
 
 # ── Self-test ──────────────────────────────────────────────────────────────
