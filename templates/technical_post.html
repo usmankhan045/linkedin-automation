@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=1080">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -50,7 +50,6 @@
     }
 
     /* ── Corner accents ─────────────────────────────────────────────────────── */
-    /* Top-right — orange L */
     .corner-tr {
       position: absolute;
       top: 36px;
@@ -61,7 +60,6 @@
       border-right: 2px solid #F97316;
       z-index: 3;
     }
-    /* Bottom-left — blue L */
     .corner-bl {
       position: absolute;
       bottom: 80px;
@@ -106,7 +104,7 @@
       display: flex;
       align-items: center;
       gap: 0;
-      width: 860px;
+      width: 880px;
     }
 
     .category-tag {
@@ -118,7 +116,7 @@
       color: #F97316;
       background: rgba(249, 115, 22, 0.08);
       border: 1px solid rgba(249, 115, 22, 0.30);
-      padding: 5px 14px;
+      padding: 6px 16px;
       border-radius: 3px;
       white-space: nowrap;
       flex-shrink: 0;
@@ -142,30 +140,30 @@
       align-items: center;
       width: 100%;
       gap: 0;
-      margin-top: 60px;
+      margin-top: 52px;
     }
 
-    /* Hook — the dominant visual element */
+    /* Hook — dominant but not overwhelming */
     .hook {
-      font-family: 'Syne', sans-serif;
-      font-size: 74px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 56px;
       font-weight: 800;
       color: #FFFFFF;
       text-align: center;
-      line-height: 1.08;
-      letter-spacing: -0.01em;
-      padding: 0 64px;
-      margin-bottom: 24px;
+      line-height: 1.12;
+      letter-spacing: -0.02em;
+      padding: 0 68px;
+      margin-bottom: 20px;
     }
 
-    /* Subheading */
+    /* Subheading — supporting context */
     .subheading {
-      font-family: 'Instrument Sans', sans-serif;
-      font-size: 26px;
+      font-family: 'Inter', sans-serif;
+      font-size: 22px;
       font-weight: 400;
-      color: rgba(255, 255, 255, 0.60);
+      color: rgba(255, 255, 255, 0.52);
       text-align: center;
-      line-height: 1.45;
+      line-height: 1.5;
       padding: 0 100px;
       margin-bottom: 36px;
     }
@@ -183,7 +181,7 @@
         transparent 100%
       );
       position: relative;
-      margin-bottom: 40px;
+      margin-bottom: 44px;
     }
     .divider::after {
       content: '';
@@ -202,8 +200,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 22px;
-      width: 860px;
+      gap: 28px;
+      width: 880px;
     }
 
     .bullet {
@@ -216,26 +214,27 @@
 
     .bullet-num {
       font-family: 'DM Mono', monospace;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 500;
       color: #F97316;
-      letter-spacing: 0.05em;
-      min-width: 30px;
+      letter-spacing: 0.06em;
+      min-width: 32px;
       flex-shrink: 0;
     }
 
     .tick-left {
-      width: 28px;
+      width: 34px;
       height: 1px;
       background: linear-gradient(to right, rgba(249,115,22,0.60), rgba(249,115,22,0.20));
-      margin: 0 12px 0 10px;
+      margin: 0 16px 0 10px;
       flex-shrink: 0;
     }
 
+    /* Bullet text — the main readable content */
     .bullet-text {
-      font-family: 'Instrument Sans', sans-serif;
-      font-size: 27px;
-      font-weight: 500;
+      font-family: 'Inter', sans-serif;
+      font-size: 30px;
+      font-weight: 600;
       color: rgba(255, 255, 255, 0.92);
       text-align: center;
       line-height: 1.35;
@@ -243,10 +242,10 @@
     }
 
     .tick-right {
-      width: 28px;
+      width: 34px;
       height: 1px;
       background: linear-gradient(to left, rgba(249,115,22,0.60), rgba(249,115,22,0.20));
-      margin: 0 10px 0 12px;
+      margin: 0 10px 0 16px;
       flex-shrink: 0;
     }
 
@@ -256,22 +255,22 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
     }
 
     .footer-name {
-      font-family: 'Syne', sans-serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 22px;
       font-weight: 700;
       color: #FFFFFF;
-      letter-spacing: 0.02em;
+      letter-spacing: 0.01em;
     }
 
     .footer-title {
-      font-family: 'Instrument Sans', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 15px;
       font-weight: 400;
-      color: rgba(255, 255, 255, 0.40);
+      color: rgba(255, 255, 255, 0.38);
       letter-spacing: 0.04em;
     }
 

@@ -7,15 +7,18 @@ process. Recommended hosting: Railway (free tier), Fly.io, or any VPS.
 - Fly.io: `fly launch` then `fly deploy`
 - Local dev: `python tools/dm_ghostwriter.py` (bot stays online while terminal is open)
 
-Handles two Discord channels:
+Handles three Discord channels:
   #ghostwriter (DISCORD_GHOSTWRITER_CHANNEL_ID)
     Slash Commands: /draft, /biz, /tech, /follow, /reply, /comment, /retry
   #stories (DISCORD_STORIES_CHANNEL_ID)
     Any non-command message → story_intake.handle_story_submission()
+  #ready-posts (DISCORD_READY_POSTS_CHANNEL_ID)
+    Any non-command message → ready_post_intake.handle_ready_post()
+    Format: post text, then ---TAGS--- separator, then comma-separated image tags
 
-Depends on: tools/story_intake.py, tools/db_client.py, tools/sheets_helper.py
+Depends on: tools/story_intake.py, tools/ready_post_intake.py, tools/db_client.py, tools/sheets_helper.py
 Env vars: DISCORD_BOT_TOKEN, DISCORD_GHOSTWRITER_CHANNEL_ID, DISCORD_STORIES_CHANNEL_ID,
-          GROQ_API_KEY, GROQ_MODEL, GOOGLE_SHEETS_SPREADSHEET_ID
+          DISCORD_READY_POSTS_CHANNEL_ID, GROQ_API_KEY, GROQ_MODEL, GOOGLE_SHEETS_SPREADSHEET_ID
 """
 
 import os
@@ -29,12 +32,14 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import tools.story_intake as story_intake
+import tools.ready_post_intake as ready_post_intake
 
 load_dotenv()
 
 GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
 GHOSTWRITER_CHANNEL_ID = int(os.getenv('DISCORD_GHOSTWRITER_CHANNEL_ID', '0'))
 STORIES_CHANNEL_ID = int(os.getenv('DISCORD_STORIES_CHANNEL_ID', '0'))
+READY_POSTS_CHANNEL_ID = int(os.getenv('DISCORD_READY_POSTS_CHANNEL_ID', '0'))
 SPREADSHEET_ID = os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID', '')
 
 # Per-user memory for /retry: user_id → (command, their_message)
@@ -255,6 +260,7 @@ def main():
         print(f'[{datetime.now()}] Bot online: {client.user}')
         print(f'  Ghostwriter channel ID : {GHOSTWRITER_CHANNEL_ID}')
         print(f'  Stories channel ID     : {STORIES_CHANNEL_ID}')
+        print(f'  Ready-posts channel ID : {READY_POSTS_CHANNEL_ID}')
         
         # Try to sync slash commands to the specific guild instantly using the channel ID from .env
         ghost_channel = client.get_channel(GHOSTWRITER_CHANNEL_ID)
@@ -284,6 +290,11 @@ def main():
             # Ignore command-style messages
             if not message.content.startswith('/'):
                 await story_intake.handle_story_submission(message, groq_client, SPREADSHEET_ID)
+
+        # ── #ready-posts channel ───────────────────────────────────────────────
+        elif message.channel.id == READY_POSTS_CHANNEL_ID:
+            if not message.content.startswith('/'):
+                await ready_post_intake.handle_ready_post(message, SPREADSHEET_ID)
 
     client.run(os.environ['DISCORD_BOT_TOKEN'])
 

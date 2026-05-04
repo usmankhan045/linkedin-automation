@@ -19,6 +19,7 @@ New env vars required (add to .env and GitHub Secrets):
   DISCORD_WEBHOOK_ERRORS          — webhook for system errors/alerts
   DISCORD_WEBHOOK_BRIEFINGS       — webhook for daily/weekly summaries
   DISCORD_WEBHOOK_COMMANDS        — webhook for command echo / audit trail
+  DISCORD_WEBHOOK_READY_POSTS     — webhook for #ready-posts channel (external scripts / GitHub Actions)
 
 Existing env vars re-used:
   DISCORD_BOT_TOKEN — shared with dm_ghostwriter.py
@@ -60,6 +61,7 @@ WEBHOOK_MAP: dict[str, Optional[str]] = {
     "errors":       os.getenv("DISCORD_WEBHOOK_ERRORS"),
     "briefings":    os.getenv("DISCORD_WEBHOOK_BRIEFINGS"),
     "commands":     os.getenv("DISCORD_WEBHOOK_COMMANDS"),
+    "ready_posts":  os.getenv("DISCORD_WEBHOOK_READY_POSTS"),
 }
 
 COLORS: dict[str, int] = {
@@ -88,7 +90,7 @@ def notify(
 
     Args:
         channel: logical name → looks up the matching DISCORD_WEBHOOK_* env var.
-                 Values: needs_action / approval / linkedin / errors / briefings / commands
+                 Values: needs_action / approval / linkedin / errors / briefings / commands / ready_posts
         title:   embed title (truncated at 256 chars by Discord).
         body:    embed description / message body.
         color:   one of blue / orange / green / red / yellow.
