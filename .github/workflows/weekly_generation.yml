@@ -1,9 +1,7 @@
 name: Weekly Post Generation
 
 on:
-  schedule:
-    - cron: '0 3 * * 0'   # Sunday 8:00 AM PKT (UTC+5 → 03:00 UTC)
-  workflow_dispatch:        # Manual trigger for testing
+  workflow_dispatch:        # Manual trigger only — schedule paused
 
 env:
   GROQ_API_KEY:                    ${{ secrets.GROQ_API_KEY }}

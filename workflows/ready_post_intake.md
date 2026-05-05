@@ -7,17 +7,10 @@ Accept a fully-written LinkedIn post from Discord and queue it for publishing �
 Message posted in the **#ready-posts** Discord channel (configured via `DISCORD_READY_POSTS_CHANNEL_ID`).
 
 ## Message Format
-```
-Your complete LinkedIn post goes here.
-Can span multiple lines.
-Hashtags and everything included.
+Just paste the complete LinkedIn post text — nothing else. No special format or separators.
 
----TAGS---
-tag1, tag2, tag3
-```
-
-- The post content above `---TAGS---` is used **verbatim** — no AI transformation.
-- Tags below `---TAGS---` are comma-separated keywords used to generate the image.
+- The post content is used **verbatim** for LinkedIn publishing — no AI rewriting.
+- Groq automatically extracts hook, headline, bullet points, category, and audience for the image.
 - Bot ignores messages that start with `/`.
 
 ## Required Inputs

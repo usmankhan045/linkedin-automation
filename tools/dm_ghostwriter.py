@@ -14,7 +14,7 @@ Handles three Discord channels:
     Any non-command message → story_intake.handle_story_submission()
   #ready-posts (DISCORD_READY_POSTS_CHANNEL_ID)
     Any non-command message → ready_post_intake.handle_ready_post()
-    Format: post text, then ---TAGS--- separator, then comma-separated image tags
+    Just paste the finished LinkedIn post — Groq extracts structure, Playwright renders the image
 
 Depends on: tools/story_intake.py, tools/ready_post_intake.py, tools/db_client.py, tools/sheets_helper.py
 Env vars: DISCORD_BOT_TOKEN, DISCORD_GHOSTWRITER_CHANNEL_ID, DISCORD_STORIES_CHANNEL_ID,
@@ -294,7 +294,7 @@ def main():
         # ── #ready-posts channel ───────────────────────────────────────────────
         elif message.channel.id == READY_POSTS_CHANNEL_ID:
             if not message.content.startswith('/'):
-                await ready_post_intake.handle_ready_post(message, SPREADSHEET_ID)
+                await ready_post_intake.handle_ready_post(message, groq_client, SPREADSHEET_ID)
 
     client.run(os.environ['DISCORD_BOT_TOKEN'])
 

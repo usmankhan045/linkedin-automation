@@ -1,15 +1,7 @@
 name: Comment Triage
 
 on:
-  schedule:
-    # Every 2 hours, Mon–Fri, 9 AM to 7 PM PKT (4 AM to 2 PM UTC)
-    - cron: '0 4  * * 1-5'   # 09:00 PKT
-    - cron: '0 6  * * 1-5'   # 11:00 PKT
-    - cron: '0 8  * * 1-5'   # 13:00 PKT
-    - cron: '0 10 * * 1-5'   # 15:00 PKT
-    - cron: '0 12 * * 1-5'   # 17:00 PKT
-    - cron: '0 14 * * 1-5'   # 19:00 PKT
-  workflow_dispatch:
+  workflow_dispatch:        # Manual trigger only — schedule paused
 
 env:
   GROQ_API_KEY:                    ${{ secrets.GROQ_API_KEY }}
