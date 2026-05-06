@@ -63,7 +63,7 @@ jobs:
 
             # ── Pull latest code and restart ────────────────────────────────
             cd ~/linkedin-automation
-            git pull origin master
+            GIT_TERMINAL_PROMPT=0 git pull origin master
             source .venv/bin/activate
             pip install -r requirements.txt --quiet
             pm2 restart pm2_ecosystem_do.config.js
