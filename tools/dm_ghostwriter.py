@@ -37,9 +37,9 @@ import tools.ready_post_intake as ready_post_intake
 load_dotenv()
 
 GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
-GHOSTWRITER_CHANNEL_ID = int(os.getenv('DISCORD_GHOSTWRITER_CHANNEL_ID', '0'))
-STORIES_CHANNEL_ID = int(os.getenv('DISCORD_STORIES_CHANNEL_ID', '0'))
-READY_POSTS_CHANNEL_ID = int(os.getenv('DISCORD_READY_POSTS_CHANNEL_ID', '0'))
+GHOSTWRITER_CHANNEL_ID = int(os.getenv('DISCORD_GHOSTWRITER_CHANNEL_ID') or '0')
+STORIES_CHANNEL_ID = int(os.getenv('DISCORD_STORIES_CHANNEL_ID') or '0')
+READY_POSTS_CHANNEL_ID = int(os.getenv('DISCORD_READY_POSTS_CHANNEL_ID') or '0')
 SPREADSHEET_ID = os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID', '')
 
 # Per-user memory for /retry: user_id → (command, their_message)
@@ -258,9 +258,10 @@ def main():
     async def on_ready():
         from datetime import datetime
         print(f'[{datetime.now()}] Bot online: {client.user}')
-        print(f'  Ghostwriter channel ID : {GHOSTWRITER_CHANNEL_ID}')
-        print(f'  Stories channel ID     : {STORIES_CHANNEL_ID}')
-        print(f'  Ready-posts channel ID : {READY_POSTS_CHANNEL_ID}')
+        print(f'  Ghostwriter channel ID : {GHOSTWRITER_CHANNEL_ID}{"" if GHOSTWRITER_CHANNEL_ID else " ⚠️ NOT SET"}')
+        print(f'  Stories channel ID     : {STORIES_CHANNEL_ID}{"" if STORIES_CHANNEL_ID else " ⚠️ NOT SET"}')
+        print(f'  Ready-posts channel ID : {READY_POSTS_CHANNEL_ID}{"" if READY_POSTS_CHANNEL_ID else " ⚠️ NOT SET"}')
+        print(f'  Spreadsheet ID         : {"set" if SPREADSHEET_ID else "⚠️ NOT SET"}')
         
         # Try to sync slash commands to the specific guild instantly using the channel ID from .env
         ghost_channel = client.get_channel(GHOSTWRITER_CHANNEL_ID)
