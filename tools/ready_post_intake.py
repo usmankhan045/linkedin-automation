@@ -172,13 +172,14 @@ def _build_html(template_path: Path, post: dict, bullets: list[str], post_number
     return html
 
 
-def render_to_temp(post_id: str, structure: dict, post_number: int) -> tuple[str | None, str | None]:
+async def render_to_temp(post_id: str, structure: dict, post_number: int) -> tuple[str | None, str | None]:
     """
     Build the HTML template and render it to a temporary PNG file.
 
     Returns (tmp_path, error_message).
     tmp_path is the path to the rendered PNG on success; None on failure.
     Caller is responsible for deleting tmp_path after use.
+    Uses async Playwright API since this runs inside the Discord asyncio event loop.
     """
     audience = structure.get('audience', 'engineer')
     category = structure.get('category', 'build-log')
@@ -205,14 +206,14 @@ def render_to_temp(post_id: str, structure: dict, post_number: int) -> tuple[str
         tmp_path = tmp.name
 
     try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            page = browser.new_page(viewport={'width': 1080, 'height': 1350})
-            page.set_content(html)
-            page.wait_for_load_state('networkidle')
-            page.screenshot(path=tmp_path, full_page=False)
-            browser.close()
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            page = await browser.new_page(viewport={'width': 1080, 'height': 1350})
+            await page.set_content(html)
+            await page.wait_for_load_state('networkidle')
+            await page.screenshot(path=tmp_path, full_page=False)
+            await browser.close()
         return tmp_path, None
 
     except Exception as e:
@@ -361,7 +362,7 @@ async def handle_ready_post(message, groq_client: Groq, spreadsheet_id: str) -> 
 
     # Render image to a temp file (kept alive so we can attach it to Discord)
     post_number = _get_next_post_number(spreadsheet_id)
-    tmp_path, render_error = render_to_temp(post_id, structure, post_number)
+    tmp_path, render_error = await render_to_temp(post_id, structure, post_number)
 
     # Upload to Supabase Storage
     image_url = None
