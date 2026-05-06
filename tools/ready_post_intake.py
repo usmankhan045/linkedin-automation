@@ -28,6 +28,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import discord
 import pytz
 from groq import Groq
 from dotenv import load_dotenv
@@ -400,41 +401,42 @@ async def handle_ready_post(message, groq_client: Groq, spreadsheet_id: str) -> 
         sheets_error = str(e)
         print(f'[WARN] Sheets Topic Bank write failed (non-fatal): {e}')
 
-    # Build Discord reply
+    # Build LinkedIn-style Discord embed
     char_count = len(content)
-    preview = content[:400] + ('...' if len(content) > 400 else '')
     category_label = CATEGORY_LABELS.get(category, category.upper())
 
-    reply_lines = [
-        f'✅ **Post queued for {slot_date}**',
-        f'📊 {char_count} chars  ·  🏷️ {category_label}  ·  👥 {audience}',
-        '',
-        '---',
-        preview,
-        '---',
-        '',
-        f'**Hook:** {structure["hook"]}',
-        f'**Headline:** {structure["headline"]}',
-        f'**Bullets:** {bullets_str}',
-    ]
-
-    if image_url:
-        reply_lines.append(f'\n🖼️ **Image:** {image_url}')
-    else:
-        reply_lines.append('\n⚠️ Image render failed — post saved, image can be generated manually.')
-
-    if sheets_error:
-        reply_lines.append(f'\n⚠️ Sheets write failed: {sheets_error}')
-    else:
-        reply_lines.append('\n✅ Set status to **approved** in Google Sheets when ready to publish.')
-
-    if overbooked:
-        reply_lines.append(
-            f'\n⚠️ Calendar is packed — scheduled for {slot_date}. '
-            'You may want to reschedule something.'
+    embed = discord.Embed(
+        description=content[:4000] + ('...' if len(content) > 4000 else ''),
+        color=0x0A66C2,  # LinkedIn blue
+    )
+    embed.set_author(name='Muhammad Usman  •  AI Automation Engineer')
+    embed.add_field(name='📅 Scheduled', value=slot_date, inline=True)
+    embed.add_field(name='🏷️ Category', value=category_label, inline=True)
+    embed.add_field(name='👥 Audience', value=audience, inline=True)
+    embed.add_field(name='🪝 Hook', value=structure['hook'] or '—', inline=False)
+    embed.add_field(name='💬 Headline', value=structure['headline'] or '—', inline=False)
+    if structure['bullet_points']:
+        embed.add_field(
+            name='• Key Points',
+            value='\n'.join(f'• {b}' for b in structure['bullet_points']),
+            inline=False,
         )
+    if image_url:
+        embed.set_image(url=image_url)
 
-    await message.channel.send('\n'.join(reply_lines))
+    footer_parts = [f'{char_count} chars', f'post_id: {post_id}']
+    if not image_url:
+        footer_parts.append('⚠️ image render failed — generate manually')
+    if sheets_error:
+        footer_parts.append(f'⚠️ sheets write failed: {sheets_error}')
+    if overbooked:
+        footer_parts.append('⚠️ calendar packed — consider rescheduling')
+    embed.set_footer(text='  ·  '.join(footer_parts))
+
+    await message.channel.send(
+        content='✅ Post queued — set status to **approved** in Google Sheets when ready.',
+        embed=embed,
+    )
     print(
         f'[{datetime.now(PKT)}] Ready post from {message.author} → '
         f'{category}/{audience} queued for {slot_date} (post_id={post_id})'
