@@ -20,6 +20,7 @@ Env vars: GROQ_API_KEY, GROQ_MODEL, GOOGLE_SHEETS_SPREADSHEET_ID,
           SHEETS_TOPIC_BANK_TAB, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 """
 
+import asyncio
 import json
 import os
 import sys
@@ -210,8 +211,10 @@ async def render_to_temp(post_id: str, structure: dict, post_number: int) -> tup
         async with async_playwright() as p:
             browser = await p.chromium.launch()
             page = await browser.new_page(viewport={'width': 1080, 'height': 1350})
-            await page.set_content(html)
-            await page.wait_for_load_state('networkidle')
+            # 'load' fires once HTML + fonts are fetched — avoids hanging on
+            # networkidle when Google Fonts CDN is slow or unreachable.
+            await page.set_content(html, wait_until='load')
+            await page.wait_for_timeout(1500)  # let fonts paint before screenshot
             await page.screenshot(path=tmp_path, full_page=False)
             await browser.close()
         return tmp_path, None
@@ -362,7 +365,13 @@ async def handle_ready_post(message, groq_client: Groq, spreadsheet_id: str) -> 
 
     # Render image to a temp file (kept alive so we can attach it to Discord)
     post_number = _get_next_post_number(spreadsheet_id)
-    tmp_path, render_error = await render_to_temp(post_id, structure, post_number)
+    try:
+        tmp_path, render_error = await asyncio.wait_for(
+            render_to_temp(post_id, structure, post_number),
+            timeout=35.0,
+        )
+    except asyncio.TimeoutError:
+        tmp_path, render_error = None, 'render timed out (>35s) — Playwright/Chromium may not be installed'
 
     # Upload to Supabase Storage
     image_url = None
