@@ -7,15 +7,61 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Deploy to droplet
+      - name: Deploy code and sync all secrets
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USER }}
           key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
           script: |
+            ENV_FILE=~/linkedin-automation/.env
+
+            update_key() {
+              KEY=$1
+              VALUE=$2
+              if grep -q "^${KEY}=" "$ENV_FILE"; then
+                sed -i "s|^${KEY}=.*|${KEY}=${VALUE}|" "$ENV_FILE"
+              else
+                echo "${KEY}=${VALUE}" >> "$ENV_FILE"
+              fi
+            }
+
+            # ── Sync all secrets ────────────────────────────────────────────
+            update_key "GROQ_API_KEY"                   "${{ secrets.GROQ_API_KEY }}"
+            update_key "GEMINI_API_KEY"                 "${{ secrets.GEMINI_API_KEY }}"
+            update_key "ANTHROPIC_API_KEY"              "${{ secrets.ANTHROPIC_API_KEY }}"
+            update_key "OPENAI_API_KEY"                 "${{ secrets.OPENAI_API_KEY }}"
+            update_key "LINKEDIN_ACCESS_TOKEN"          "${{ secrets.LINKEDIN_ACCESS_TOKEN }}"
+            update_key "LINKEDIN_CLIENT_ID"             "${{ secrets.LINKEDIN_CLIENT_ID }}"
+            update_key "LINKEDIN_CLIENT_SECRET"         "${{ secrets.LINKEDIN_CLIENT_SECRET }}"
+            update_key "LINKEDIN_PERSON_URN"            "${{ secrets.LINKEDIN_PERSON_URN }}"
+            update_key "DISCORD_BOT_TOKEN"              "${{ secrets.DISCORD_BOT_TOKEN }}"
+            update_key "DISCORD_READY_POSTS_CHANNEL_ID" "${{ secrets.DISCORD_READY_POSTS_CHANNEL_ID }}"
+            update_key "DISCORD_STORIES_CHANNEL_ID"     "${{ secrets.DISCORD_STORIES_CHANNEL_ID }}"
+            update_key "DISCORD_GHOSTWRITER_CHANNEL_ID" "${{ secrets.DISCORD_GHOSTWRITER_CHANNEL_ID }}"
+            update_key "DISCORD_CONFIRMATIONS_CHANNEL_ID" "${{ secrets.DISCORD_CONFIRMATIONS_CHANNEL_ID }}"
+            update_key "DISCORD_COMMANDS_CHANNEL_ID"    "${{ secrets.DISCORD_COMMANDS_CHANNEL_ID }}"
+            update_key "DISCORD_LEADS_CHANNEL_ID"       "${{ secrets.DISCORD_LEADS_CHANNEL_ID }}"
+            update_key "DISCORD_DIGEST_CHANNEL_ID"      "${{ secrets.DISCORD_DIGEST_CHANNEL_ID }}"
+            update_key "DISCORD_WEBHOOK_CONFIRMATIONS"  "${{ secrets.DISCORD_WEBHOOK_CONFIRMATIONS }}"
+            update_key "DISCORD_LEADS_WEBHOOK_URL"      "${{ secrets.DISCORD_LEADS_WEBHOOK_URL }}"
+            update_key "DISCORD_DIGEST_WEBHOOK_URL"     "${{ secrets.DISCORD_DIGEST_WEBHOOK_URL }}"
+            update_key "DISCORD_LEAD_HUNTER_WEBHOOK_URL" "${{ secrets.DISCORD_LEAD_HUNTER_WEBHOOK_URL }}"
+            update_key "DISCORD_WEBHOOK_NEEDS_ACTION"   "${{ secrets.DISCORD_WEBHOOK_NEEDS_ACTION }}"
+            update_key "DISCORD_WEBHOOK_APPROVAL"       "${{ secrets.DISCORD_WEBHOOK_APPROVAL }}"
+            update_key "DISCORD_WEBHOOK_LINKEDIN"       "${{ secrets.DISCORD_WEBHOOK_LINKEDIN }}"
+            update_key "DISCORD_WEBHOOK_ERRORS"         "${{ secrets.DISCORD_WEBHOOK_ERRORS }}"
+            update_key "DISCORD_WEBHOOK_BRIEFINGS"      "${{ secrets.DISCORD_WEBHOOK_BRIEFINGS }}"
+            update_key "DISCORD_WEBHOOK_COMMANDS"       "${{ secrets.DISCORD_WEBHOOK_COMMANDS }}"
+            update_key "SUPABASE_URL"                   "${{ secrets.SUPABASE_URL }}"
+            update_key "SUPABASE_SERVICE_ROLE_KEY"      "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+            update_key "GOOGLE_SHEETS_SPREADSHEET_ID"   "${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}"
+            update_key "APIFY_API_TOKEN"                "${{ secrets.APIFY_API_TOKEN }}"
+            echo "Secrets synced."
+
+            # ── Pull latest code and restart ────────────────────────────────
             cd ~/linkedin-automation
             git pull origin master
             source .venv/bin/activate
