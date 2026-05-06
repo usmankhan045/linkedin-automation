@@ -137,23 +137,6 @@ def extract_post_structure(groq_client: Groq, post_text: str) -> dict:
 
 # ── Image rendering ────────────────────────────────────────────────────────────
 
-def _render_image(html_string: str, output_path: str) -> bool:
-    """Render HTML to a 1080×1350 PNG using Playwright. Returns True on success."""
-    try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            page = browser.new_page(viewport={'width': 1080, 'height': 1350})
-            page.set_content(html_string)
-            page.wait_for_load_state('networkidle')
-            page.screenshot(path=output_path, full_page=False)
-            browser.close()
-        return True
-    except Exception as e:
-        print(f'[WARN] Playwright render error: {e}')
-        return False
-
-
 def _build_html(template_path: Path, post: dict, bullets: list[str], post_number: int) -> str:
     """Fill template placeholders with post data."""
     html = template_path.read_text(encoding='utf-8')
@@ -189,11 +172,13 @@ def _build_html(template_path: Path, post: dict, bullets: list[str], post_number
     return html
 
 
-def render_and_upload_image(post_id: str, structure: dict, post_number: int) -> str | None:
+def render_to_temp(post_id: str, structure: dict, post_number: int) -> tuple[str | None, str | None]:
     """
-    Render the appropriate HTML template and upload the result to Supabase Storage.
+    Build the HTML template and render it to a temporary PNG file.
 
-    Returns the public image URL, or None on failure.
+    Returns (tmp_path, error_message).
+    tmp_path is the path to the rendered PNG on success; None on failure.
+    Caller is responsible for deleting tmp_path after use.
     """
     audience = structure.get('audience', 'engineer')
     category = structure.get('category', 'build-log')
@@ -202,45 +187,52 @@ def render_and_upload_image(post_id: str, structure: dict, post_number: int) -> 
     template_path = TEMPLATES_DIR / template_file
 
     if not template_path.exists():
-        print(f'[WARN] Template not found: {template_path}')
-        return None
+        return None, f'template not found: {template_file}'
 
     category_label = CATEGORY_LABELS.get(category, category.upper().replace('-', ' '))
     post_data = {**structure, 'category_label': category_label}
     bullets = structure.get('bullet_points', [])
 
     if not bullets:
-        print(f'[WARN] No bullet points extracted for post {post_id}')
-        return None
+        return None, 'no bullet points extracted'
 
     try:
         html = _build_html(template_path, post_data, bullets, post_number)
     except Exception as e:
-        print(f'[WARN] Template build error for post {post_id}: {e}')
-        return None
+        return None, f'template build error: {e}'
 
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
         tmp_path = tmp.name
 
     try:
-        if not _render_image(html, tmp_path):
-            return None
-
-        with open(tmp_path, 'rb') as f:
-            image_bytes = f.read()
-
-        image_url = db.upload_image(post_id, image_bytes)
-        return image_url
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page(viewport={'width': 1080, 'height': 1350})
+            page.set_content(html)
+            page.wait_for_load_state('networkidle')
+            page.screenshot(path=tmp_path, full_page=False)
+            browser.close()
+        return tmp_path, None
 
     except Exception as e:
-        print(f'[WARN] Image upload failed for post {post_id}: {e}')
-        return None
-
-    finally:
+        print(f'[WARN] Playwright render error for post {post_id}: {e}')
         try:
             os.unlink(tmp_path)
         except OSError:
             pass
+        return None, f'Playwright error: {e}'
+
+
+def upload_image_file(post_id: str, tmp_path: str) -> str | None:
+    """Upload a rendered PNG file to Supabase Storage. Returns public URL or None."""
+    try:
+        with open(tmp_path, 'rb') as f:
+            image_bytes = f.read()
+        return db.upload_image(post_id, image_bytes)
+    except Exception as e:
+        print(f'[WARN] Image upload failed for post {post_id}: {e}')
+        return None
 
 
 # ── Scheduling ─────────────────────────────────────────────────────────────────
@@ -367,12 +359,16 @@ async def handle_ready_post(message, groq_client: Groq, spreadsheet_id: str) -> 
     )
     post_id = post_row['id']
 
-    # Render and upload image
+    # Render image to a temp file (kept alive so we can attach it to Discord)
     post_number = _get_next_post_number(spreadsheet_id)
-    image_url = render_and_upload_image(post_id, structure, post_number)
+    tmp_path, render_error = render_to_temp(post_id, structure, post_number)
 
-    if image_url:
-        db.update_post(post_id, image_url=image_url)
+    # Upload to Supabase Storage
+    image_url = None
+    if tmp_path:
+        image_url = upload_image_file(post_id, tmp_path)
+        if image_url:
+            db.update_post(post_id, image_url=image_url)
 
     # Find next available weekday slot
     slot_date, overbooked = next_available_weekday_slot(spreadsheet_id)
@@ -401,7 +397,7 @@ async def handle_ready_post(message, groq_client: Groq, spreadsheet_id: str) -> 
         sheets_error = str(e)
         print(f'[WARN] Sheets Topic Bank write failed (non-fatal): {e}')
 
-    # Build LinkedIn-style Discord embed
+    # Build Discord embed
     char_count = len(content)
     category_label = CATEGORY_LABELS.get(category, category.upper())
 
@@ -421,22 +417,39 @@ async def handle_ready_post(message, groq_client: Groq, spreadsheet_id: str) -> 
             value='\n'.join(f'• {b}' for b in structure['bullet_points']),
             inline=False,
         )
-    if image_url:
-        embed.set_image(url=image_url)
 
     footer_parts = [f'{char_count} chars', f'post_id: {post_id}']
-    if not image_url:
-        footer_parts.append('⚠️ image render failed — generate manually')
+    if render_error:
+        footer_parts.append(f'⚠️ image failed: {render_error}')
     if sheets_error:
-        footer_parts.append(f'⚠️ sheets write failed: {sheets_error}')
+        footer_parts.append(f'⚠️ sheets: {sheets_error}')
     if overbooked:
         footer_parts.append('⚠️ calendar packed — consider rescheduling')
     embed.set_footer(text='  ·  '.join(footer_parts))
 
-    await message.channel.send(
-        content='✅ Post queued — set status to **approved** in Google Sheets when ready.',
-        embed=embed,
-    )
+    # Send reply — attach the rendered image directly so it shows inline in Discord
+    try:
+        if tmp_path and os.path.exists(tmp_path):
+            # Attach the PNG so Discord displays it inside the embed
+            discord_file = discord.File(tmp_path, filename='post.png')
+            embed.set_image(url='attachment://post.png')
+            await message.channel.send(
+                content='✅ Post queued — set status to **approved** in Google Sheets when ready.',
+                embed=embed,
+                file=discord_file,
+            )
+        else:
+            await message.channel.send(
+                content='✅ Post queued — set status to **approved** in Google Sheets when ready.',
+                embed=embed,
+            )
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
     print(
         f'[{datetime.now(PKT)}] Ready post from {message.author} → '
         f'{category}/{audience} queued for {slot_date} (post_id={post_id})'

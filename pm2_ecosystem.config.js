@@ -26,6 +26,7 @@ module.exports = {
       name: "discord-bot",
       script: "tools/dm_ghostwriter.py",
       interpreter: "python3",
+      cwd: __dirname,
       watch: false,
       restart_delay: 5000,
       max_restarts: 10,

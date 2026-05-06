@@ -19,6 +19,7 @@ Sheets structure expected:
 import os
 import json
 from datetime import datetime, date, timedelta
+from pathlib import Path
 from typing import Optional
 
 import gspread
@@ -52,6 +53,11 @@ def get_sheet_client() -> gspread.Client:
         sa_info = json.loads(sa_json_str)
     else:
         sa_path = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON_PATH', './credentials.json')
+        # Resolve relative paths from the repo root so this works regardless of
+        # the working directory PM2 or any other runner uses.
+        sa_path_obj = Path(sa_path)
+        if not sa_path_obj.is_absolute():
+            sa_path = str(Path(__file__).parent.parent / sa_path_obj)
         with open(sa_path, 'r') as f:
             sa_info = json.load(f)
 
