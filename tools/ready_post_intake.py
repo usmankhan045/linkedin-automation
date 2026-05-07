@@ -447,12 +447,12 @@ async def _process_ready_post(message, groq_client: Groq, spreadsheet_id: str, c
 
     footer_parts = [f'{char_count} chars', f'post_id: {post_id}']
     if render_error:
-        footer_parts.append(f'⚠️ image failed: {render_error}')
+        footer_parts.append(f'⚠️ image failed: {str(render_error)[:200]}')
     if sheets_error:
-        footer_parts.append(f'⚠️ sheets: {sheets_error}')
+        footer_parts.append(f'⚠️ sheets: {str(sheets_error)[:200]}')
     if overbooked:
         footer_parts.append('⚠️ calendar packed — consider rescheduling')
-    embed.set_footer(text='  ·  '.join(footer_parts))
+    embed.set_footer(text='  ·  '.join(footer_parts)[:2048])
 
     # Send reply — attach the rendered image directly so it shows inline in Discord
     try:
