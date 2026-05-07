@@ -119,7 +119,11 @@ def get_topic_bank(sheet_id: str) -> list:
 
 def get_todays_post(sheet_id: str) -> Optional[dict]:
     """
-    Return the Topic Bank row where status='approved' AND scheduled_date=today (PKT).
+    Return the Topic Bank row where status is 'approved' or 'pending_approval'
+    AND scheduled_date=today (PKT).
+
+    'pending_approval' is included so posts that were staged but never confirmed
+    (e.g. due to a missing Discord webhook) are still picked up and published.
 
     Returns None if no matching row is found. The returned dict includes '_row_index'
     so callers can pass it directly to update_row_status().
@@ -128,7 +132,7 @@ def get_todays_post(sheet_id: str) -> Optional[dict]:
     ws = _open_worksheet(get_sheet_client().open_by_key(sheet_id), TOPIC_BANK_TAB)
     all_rows = _parse_rows(ws)
     for row in all_rows:
-        if row.get('status') == 'approved' and row.get('scheduled_date') == today_str:
+        if row.get('status') in ('approved', 'pending_approval') and row.get('scheduled_date') == today_str:
             return row
     return None
 

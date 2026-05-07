@@ -265,16 +265,79 @@ def insert_to_supabase(post_row: dict, linkedin_urn: str) -> None:
         print(f"[{datetime.now()}] Supabase insert failed (non-fatal, post already published): {e}")
 
 
-# ─── Vault-driven publish ──────────────────────────────────────────────────────
+# ─── Core publish logic ───────────────────────────────────────────────────────
+
+def _publish_post_row(post_row: dict, token_ref: list, person_urn: str) -> None:
+    """
+    Publish one Sheets row to LinkedIn, update Sheets to 'published', insert to
+    Supabase, and send the Discord confirmation. Raises on any fatal error so the
+    caller can handle it uniformly.
+    """
+    row_index  = post_row['_row_index']
+    post_text  = post_row.get('post_text', '').strip()
+    image_path = post_row.get('image_path', '').strip()
+    topic      = post_row.get('topic', 'unknown')
+
+    if not post_text:
+        raise ValueError(f"post_text is empty in Sheets row {row_index}")
+
+    # ── Load image bytes ────────────────────────────────────────────────────
+    image_bytes = None
+    if image_path:
+        try:
+            if image_path.startswith(('http://', 'https://')):
+                r = requests.get(image_path, timeout=30)
+                r.raise_for_status()
+                image_bytes = r.content
+                print(f"[{datetime.now()}] Image downloaded ({len(image_bytes):,} bytes)")
+            elif os.path.exists(image_path):
+                with open(image_path, 'rb') as f:
+                    image_bytes = f.read()
+                print(f"[{datetime.now()}] Image loaded from disk ({len(image_bytes):,} bytes)")
+            else:
+                print(f"[{datetime.now()}] image_path not found — posting text-only")
+        except Exception as e:
+            print(f"[{datetime.now()}] Image load failed ({e}) — posting text-only")
+            image_bytes = None
+
+    # ── Upload image to LinkedIn ────────────────────────────────────────────
+    asset_urn = None
+    if image_bytes:
+        try:
+            upload_url, asset_urn = register_image_upload(token_ref, person_urn)
+            upload_image_binary(upload_url, image_bytes, token_ref[0])
+            time.sleep(3)
+        except Exception as e:
+            print(f"[{datetime.now()}] Image upload failed ({e}) — falling back to text-only")
+            asset_urn = None
+
+    # ── Create the LinkedIn post ────────────────────────────────────────────
+    post_type = "with image" if asset_urn else "text-only"
+    print(f"[{datetime.now()}] Creating UGC post ({post_type})...")
+    linkedin_urn = create_ugc_post(token_ref, person_urn, post_text, asset_urn)
+    linkedin_url = f"https://www.linkedin.com/feed/update/{linkedin_urn}"
+    print(f"[{datetime.now()}] Post live: {linkedin_url}")
+
+    # ── Update Sheets ───────────────────────────────────────────────────────
+    sheets.update_row_status(SPREADSHEET_ID, row_index, {
+        'status':  'published',
+        'post_id': linkedin_urn,
+    })
+
+    # ── Insert to Supabase (non-fatal) ──────────────────────────────────────
+    insert_to_supabase(post_row, linkedin_urn)
+
+    # ── Discord confirmation ────────────────────────────────────────────────
+    notify("linkedin", f"Published: {topic}", linkedin_url, color="green")
+    vault_sync.log_action("publish_post", "success", f"topic={topic} urn={linkedin_urn}")
+
+
+# ─── Vault-driven publish (backward compat) ────────────────────────────────────
 
 def publish_approved_from_vault() -> None:
     """
-    Publish all linkedin_post items that have been approved via Discord !approve.
-
-    Reads vault/Approved/, filters for action='linkedin_post', re-fetches each
-    post's full text from Sheets using the stored sheets_row, publishes to LinkedIn,
-    then updates Sheets, inserts to Supabase, moves the vault file to Done/, and
-    notifies Discord.
+    Publish any items that were previously staged to vault/Approved/ via !approve.
+    Kept for backward compatibility; new posts go through the direct Sheets path.
     """
     approved = vault_sync.check_approved()
     posts_to_publish = [
@@ -290,80 +353,22 @@ def publish_approved_from_vault() -> None:
     person_urn = os.environ['LINKEDIN_PERSON_URN']
 
     for item in posts_to_publish:
-        filename = item["filename"]
-        details  = item["metadata"].get("details", {})
+        filename   = item["filename"]
+        details    = item["metadata"].get("details", {})
         sheets_row = details.get("sheets_row")
         topic      = details.get("topic", "unknown")
 
         print(f"[{datetime.now()}] Publishing vault-approved post: '{topic}' ({filename})")
-
         try:
             if not sheets_row:
                 raise ValueError("sheets_row missing from vault metadata")
-
             post_row = sheets.get_row_by_index(SPREADSHEET_ID, int(sheets_row))
             if not post_row:
                 raise ValueError(f"Row {sheets_row} not found in Sheets")
-
-            post_text  = post_row.get('post_text', '').strip()
-            image_path = post_row.get('image_path', '').strip()
-
-            if not post_text:
-                raise ValueError(f"post_text is empty in Sheets row {sheets_row}")
-
-            # ── Load image bytes ────────────────────────────────────────────
-            image_bytes = None
-            if image_path:
-                try:
-                    if image_path.startswith(('http://', 'https://')):
-                        r = requests.get(image_path, timeout=30)
-                        r.raise_for_status()
-                        image_bytes = r.content
-                        print(f"[{datetime.now()}] Image downloaded ({len(image_bytes):,} bytes)")
-                    elif os.path.exists(image_path):
-                        with open(image_path, 'rb') as f:
-                            image_bytes = f.read()
-                        print(f"[{datetime.now()}] Image loaded from disk ({len(image_bytes):,} bytes)")
-                    else:
-                        print(f"[{datetime.now()}] image_path not found — posting text-only")
-                except Exception as e:
-                    print(f"[{datetime.now()}] Image load failed ({e}) — posting text-only")
-                    image_bytes = None
-
-            # ── Upload image to LinkedIn ────────────────────────────────────
-            asset_urn = None
-            if image_bytes:
-                try:
-                    upload_url, asset_urn = register_image_upload(token_ref, person_urn)
-                    upload_image_binary(upload_url, image_bytes, token_ref[0])
-                    time.sleep(3)
-                except Exception as e:
-                    print(f"[{datetime.now()}] Image upload failed ({e}) — falling back to text-only")
-                    asset_urn = None
-
-            # ── Create the LinkedIn post ────────────────────────────────────
-            post_type   = "with image" if asset_urn else "text-only"
-            print(f"[{datetime.now()}] Creating UGC post ({post_type})...")
-            linkedin_urn = create_ugc_post(token_ref, person_urn, post_text, asset_urn)
-            linkedin_url = f"https://www.linkedin.com/feed/update/{linkedin_urn}"
-            print(f"[{datetime.now()}] Post live: {linkedin_url}")
-
-            # ── Update Sheets ───────────────────────────────────────────────
-            sheets.update_row_status(SPREADSHEET_ID, int(sheets_row), {
-                'status':  'published',
-                'post_id': linkedin_urn,
-            })
-
-            # ── Insert to Supabase (non-fatal) ──────────────────────────────
-            insert_to_supabase(post_row, linkedin_urn)
-
-            # ── Vault + Discord ─────────────────────────────────────────────
+            _publish_post_row(post_row, token_ref, person_urn)
             vault_sync.move_to_done(filename)
-            notify("linkedin", f"Published: {topic}", linkedin_url, color="green")
-            vault_sync.log_action("publish_post", "success", f"topic={topic} urn={linkedin_urn}")
-
         except Exception as e:
-            print(f"[{datetime.now()}] Failed to publish '{topic}': {e}")
+            print(f"[{datetime.now()}] Failed to publish vault item '{topic}': {e}")
             notify("errors", f"Publish failed: {topic}", str(e), color="red", urgent=True)
             vault_sync.log_action("publish_post", "error", f"topic={topic} error={e}")
 
@@ -373,53 +378,40 @@ def publish_approved_from_vault() -> None:
 def main():
     print(f"[{datetime.now()}] Starting LinkedIn publish job ({datetime.now(PKT).strftime('%Y-%m-%d %A PKT')})")
 
-    # ── 1. Publish anything already approved via Discord !approve ─────────────
+    # 1. Publish anything already sitting in vault/Approved/ (legacy path)
     publish_approved_from_vault()
 
-    # ── 2. Check Sheets for newly approved posts → stage for Discord review ───
-    print(f"[{datetime.now()}] Checking Sheets for newly approved posts...")
+    # 2. Find today's approved post in Sheets and publish it directly.
+    #    Approval already happened when the user clicked the Discord Approve button.
+    print(f"[{datetime.now()}] Checking Sheets for today's approved post...")
     post_row = sheets.get_todays_post(SPREADSHEET_ID)
 
     if post_row is None:
         today_str = datetime.now(PKT).date().strftime('%Y-%m-%d')
-        print(f"[{datetime.now()}] No approved post in Sheets for {today_str}. Nothing to stage.")
+        print(f"[{datetime.now()}] No approved post in Sheets for {today_str}. Nothing to publish.")
         return
 
-    row_index      = post_row['_row_index']
-    post_text      = post_row.get('post_text', '').strip()
-    image_path     = post_row.get('image_path', '').strip()
-    topic          = post_row.get('topic', 'unknown')
-    scheduled_date = post_row.get('scheduled_date', '')
+    row_index = post_row['_row_index']
+    topic     = post_row.get('topic', 'unknown')
+    post_text = post_row.get('post_text', '').strip()
 
     if not post_text:
-        msg = f"Approved post has no post_text (row {row_index}, topic: '{topic}'). Cannot stage."
+        msg = f"Approved post has no post_text (row {row_index}, topic: '{topic}'). Skipping."
         print(f"[{datetime.now()}] {msg}")
         notify("errors", "Publish: missing post_text", msg, color="red")
         return
 
-    print(f"[{datetime.now()}] Found approved post: '{topic}' (row {row_index}). Staging for approval.")
+    print(f"[{datetime.now()}] Found approved post: '{topic[:80]}' (row {row_index}). Publishing now...")
 
-    # ── 3. Write to vault Pending_Approval ───────────────────────────────────
-    vault_sync.write_pending_approval("linkedin_post", {
-        "topic":          topic,
-        "scheduled_date": scheduled_date,
-        "post_preview":   post_text[:200],
-        "image_url":      image_path,
-        "sheets_row":     row_index,
-    })
+    token_ref  = [os.environ['LINKEDIN_ACCESS_TOKEN']]
+    person_urn = os.environ['LINKEDIN_PERSON_URN']
 
-    # ── 4. Lock it in Sheets so the next cron run doesn't re-stage it ────────
-    sheets.update_row_status(SPREADSHEET_ID, row_index, {"status": "pending_approval"})
-
-    # ── 5. Ping Discord for human approval ────────────────────────────────────
-    notify(
-        "approval",
-        f"Ready to publish: {topic}",
-        f"{post_text[:200]}\n\nType `!approve` to publish or `!reject` to skip.",
-        color="yellow",
-    )
-
-    print(f"[{datetime.now()}] Staged. Waiting for !approve in Discord.")
+    try:
+        _publish_post_row(post_row, token_ref, person_urn)
+    except Exception as e:
+        print(f"[{datetime.now()}] Failed to publish '{topic}': {e}")
+        notify("errors", f"Publish failed: {topic}", str(e), color="red", urgent=True)
+        vault_sync.log_action("publish_post", "error", f"topic={topic} error={e}")
 
 
 if __name__ == '__main__':
