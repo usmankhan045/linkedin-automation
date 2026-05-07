@@ -49,10 +49,15 @@ def get_sheet_client() -> gspread.Client:
         return _client
 
     sa_json_str = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
+    sa_path_str = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON_PATH', '')
+
     if sa_json_str:
         sa_info = json.loads(sa_json_str)
+    elif sa_path_str and sa_path_str.strip().startswith('{'):
+        # Env var contains the JSON content itself, not a file path
+        sa_info = json.loads(sa_path_str)
     else:
-        sa_path = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON_PATH', './credentials.json')
+        sa_path = sa_path_str or './credentials.json'
         # Resolve relative paths from the repo root so this works regardless of
         # the working directory PM2 or any other runner uses.
         sa_path_obj = Path(sa_path)
