@@ -340,6 +340,20 @@ async def handle_ready_post(message, groq_client: Groq, spreadsheet_id: str) -> 
 
     await message.channel.send('⏳ Analyzing your post and generating image...')
 
+    try:
+        await _process_ready_post(message, groq_client, spreadsheet_id, content)
+    except Exception as e:
+        print(f'[ERROR] Unhandled exception in handle_ready_post for message {message.id}: {e}')
+        import traceback
+        traceback.print_exc()
+        try:
+            await message.channel.send(f'⚠️ Something went wrong processing your post: `{e}`')
+        except Exception:
+            pass
+
+
+async def _process_ready_post(message, groq_client: Groq, spreadsheet_id: str, content: str) -> None:
+    """Inner implementation — wrapped by handle_ready_post for top-level error reporting."""
     # Extract structure via Groq
     try:
         structure = extract_post_structure(groq_client, content)
@@ -378,7 +392,10 @@ async def handle_ready_post(message, groq_client: Groq, spreadsheet_id: str) -> 
     if tmp_path:
         image_url = upload_image_file(post_id, tmp_path)
         if image_url:
-            db.update_post(post_id, image_url=image_url)
+            try:
+                db.update_post(post_id, image_url=image_url)
+            except Exception as e:
+                print(f'[WARN] update_post image_url failed for {post_id}: {e}')
 
     # Find next available weekday slot
     slot_date, overbooked = next_available_weekday_slot(spreadsheet_id)
@@ -440,7 +457,6 @@ async def handle_ready_post(message, groq_client: Groq, spreadsheet_id: str) -> 
     # Send reply — attach the rendered image directly so it shows inline in Discord
     try:
         if tmp_path and os.path.exists(tmp_path):
-            # Attach the PNG so Discord displays it inside the embed
             discord_file = discord.File(tmp_path, filename='post.png')
             embed.set_image(url='attachment://post.png')
             await message.channel.send(
@@ -453,6 +469,15 @@ async def handle_ready_post(message, groq_client: Groq, spreadsheet_id: str) -> 
                 content='✅ Post queued — set status to **approved** in Google Sheets when ready.',
                 embed=embed,
             )
+    except Exception as e:
+        print(f'[ERROR] Discord send failed for post {post_id}: {e}')
+        try:
+            await message.channel.send(
+                f'⚠️ Post saved (id: `{post_id}`) but Discord send failed: {e}\n'
+                f'Scheduled for {slot_date}. Check Google Sheets.'
+            )
+        except Exception:
+            pass
     finally:
         if tmp_path and os.path.exists(tmp_path):
             try:
