@@ -63,6 +63,61 @@ AUDIENCE_TEMPLATES: dict[str, str] = {
 }
 
 
+# ── Approve button ─────────────────────────────────────────────────────────────
+
+class ApproveView(discord.ui.View):
+    """Sends an Approve button with the post preview. Updates Sheets status to 'approved' on click."""
+
+    def __init__(self, post_id: str, spreadsheet_id: str):
+        super().__init__(timeout=None)  # persists until bot restart
+        self.post_id = post_id
+        self.spreadsheet_id = spreadsheet_id
+
+    @discord.ui.button(label='✅ Approve & Schedule', style=discord.ButtonStyle.success)
+    async def approve_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        try:
+            ws = sheets.get_sheet_client().open_by_key(self.spreadsheet_id).worksheet(TOPIC_BANK_TAB)
+            all_values = ws.get_all_values()
+            headers = all_values[0] if all_values else []
+
+            try:
+                post_id_col = headers.index('post_id')
+                status_col = headers.index('status')
+            except ValueError:
+                await interaction.followup.send('⚠️ Required columns not found in Sheets.', ephemeral=True)
+                return
+
+            row_index = None
+            current_status = None
+            for i, row in enumerate(all_values[1:], start=2):
+                if len(row) > post_id_col and row[post_id_col] == self.post_id:
+                    row_index = i
+                    current_status = row[status_col] if len(row) > status_col else ''
+                    break
+
+            if row_index is None:
+                await interaction.followup.send('⚠️ Post not found in Sheets — it may have been moved or deleted.', ephemeral=True)
+                return
+
+            if current_status == 'approved':
+                await interaction.followup.send('Already approved.', ephemeral=True)
+                return
+
+            # 1-based column index for gspread
+            ws.update_cell(row_index, status_col + 1, 'approved')
+
+            button.disabled = True
+            button.label = '✅ Approved'
+            button.style = discord.ButtonStyle.secondary
+            await interaction.message.edit(view=self)
+            await interaction.followup.send(f'✅ Post approved and scheduled for publishing.', ephemeral=False)
+
+        except Exception as e:
+            print(f'[ERROR] Approve button failed for post {self.post_id}: {e}')
+            await interaction.followup.send(f'⚠️ Failed to approve: `{e}`', ephemeral=True)
+
+
 # ── Groq extraction ────────────────────────────────────────────────────────────
 
 EXTRACTION_SYSTEM = (
@@ -455,19 +510,22 @@ async def _process_ready_post(message, groq_client: Groq, spreadsheet_id: str, c
     embed.set_footer(text='  ·  '.join(footer_parts)[:2048])
 
     # Send reply — attach the rendered image directly so it shows inline in Discord
+    approve_view = ApproveView(post_id=post_id, spreadsheet_id=spreadsheet_id)
     try:
         if tmp_path and os.path.exists(tmp_path):
             discord_file = discord.File(tmp_path, filename='post.png')
             embed.set_image(url='attachment://post.png')
             await message.channel.send(
-                content='✅ Post queued — set status to **approved** in Google Sheets when ready.',
+                content='📋 Post queued — click **Approve & Schedule** when ready to publish.',
                 embed=embed,
                 file=discord_file,
+                view=approve_view,
             )
         else:
             await message.channel.send(
-                content='✅ Post queued — set status to **approved** in Google Sheets when ready.',
+                content='📋 Post queued — click **Approve & Schedule** when ready to publish.',
                 embed=embed,
+                view=approve_view,
             )
     except Exception as e:
         print(f'[ERROR] Discord send failed for post {post_id}: {e}')
