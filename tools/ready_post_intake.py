@@ -129,10 +129,23 @@ EXTRACTION_TEMPLATE = (
     'Analyze this LinkedIn post and extract the following in JSON:\n\n'
     'Post:\n---\n{post_text}\n---\n\n'
     'Fields to extract:\n'
-    '- hook: The single most striking sentence from the post. Max 80 chars. '
-    'Should work as a large visual headline. Pull directly from the post text — do not rewrite.\n'
-    '- headline: A short supporting subtitle (3-8 words). Max 90 chars. Captures the core theme.\n'
-    '- bullet_points: Array of 3-5 key takeaways. Each point: 2-7 words, scannable and punchy.\n'
+    '- hook: A standalone visual headline for a branded infographic image. Max 72 chars.\n'
+    '  Rules:\n'
+    '  1. Must make sense WITHOUT reading the post — no sentence fragments, no "That\'s X" or "It\'s Y" openers that rely on prior context\n'
+    '  2. Create genuine curiosity — tease the core insight without giving it away\n'
+    '  3. Hint at what the reader will learn (the benefit or the twist)\n'
+    '  4. Write it fresh — synthesize from the post\'s core idea, do not copy-paste a sentence verbatim\n'
+    '  5. Examples of good hooks: "Why your chatbot keeps lying to you", "The fix most AI builders skip", "One decision separates useful AI from noise"\n'
+    '  6. Examples of bad hooks (too vague or context-dependent): "That\'s an architecture problem", "This changes everything", "Here\'s why"\n'
+    '- headline: A 3-6 word subtitle that names the specific topic or concept. Max 60 chars. Clear, not clever — it should anchor the hook.\n'
+    '  Example: if hook is "Why your chatbot keeps lying to you", headline could be "The RAG Architecture Fix"\n'
+    '- bullet_points: Array of 3-5 key insights shown as numbered rows in the image. Each point: 3-7 words.\n'
+    '  Rules:\n'
+    '  1. Each bullet should be a complete micro-insight — a reader should understand it without reading the post\n'
+    '  2. Together they should tell the logical flow of the post (problem → cause → solution → result)\n'
+    '  3. Write subject-verb mini-statements, not noun fragments. Bad: "Knowledge Base", "No Hallucination". Good: "Models don\'t know your business", "RAG feeds it your actual docs"\n'
+    '  4. No filler openers like "Learn how to", "Understanding", "Why you should"\n'
+    '  5. Use active, concrete language — name the specific concept, tool, or outcome\n'
     '- category: One of: hot-take, build-log, transformation, behind-scenes, founder-roi, story\n'
     '- audience: One of: engineer (technical/dev content), founder (business/leadership), story (personal narrative)\n\n'
     'JSON only, no explanation:\n'
@@ -169,8 +182,8 @@ def extract_post_structure(groq_client: Groq, post_text: str) -> dict:
             result = json.loads(raw)
 
             # Validate required keys and normalise
-            result['hook'] = str(result.get('hook', '') or '')[:80]
-            result['headline'] = str(result.get('headline', '') or '')[:90]
+            result['hook'] = str(result.get('hook', '') or '')[:72]
+            result['headline'] = str(result.get('headline', '') or '')[:60]
             result['bullet_points'] = [
                 str(b) for b in result.get('bullet_points', []) if b
             ][:5]
@@ -208,7 +221,7 @@ def _build_html(template_path: Path, post: dict, bullets: list[str], post_number
 
     replacements = {
         '{{CATEGORY_LABEL}}': post.get('category_label', 'BUILD LOG'),
-        '{{HOOK}}':           post.get('hook', '')[:80],
+        '{{HOOK}}':           post.get('hook', '')[:72],
         '{{HEADLINE}}':       post.get('headline', ''),
         '{{BULLET_1}}':       padded[0],
         '{{BULLET_2}}':       padded[1],
