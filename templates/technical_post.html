@@ -6,11 +6,10 @@
   <meta name="viewport" content="width=1080">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    /* Suppress any third-party watermarks */
     [class*="gemini"], [class*="watermark"], [id*="watermark"],
     [class*="attribution"], iframe { display: none !important; }
 
@@ -18,347 +17,338 @@
       width: 1080px;
       height: 1350px;
       overflow: hidden;
-      background: #05070F;
     }
 
-    /* ── Canvas ─────────────────────────────────────────────────────────────── */
     .canvas {
       width: 1080px;
       height: 1350px;
       position: relative;
+      background: linear-gradient(150deg, #F4F8FF 0%, #EBF2FF 45%, #F1F6FF 100%);
       display: flex;
       flex-direction: column;
-      overflow: hidden;
-      background:
-        radial-gradient(ellipse at 12% 18%, rgba(249, 115, 22, 0.18) 0%, transparent 45%),
-        radial-gradient(ellipse at 88% 82%, rgba(59, 130, 246, 0.16) 0%, transparent 45%),
-        radial-gradient(ellipse at 50% 50%, rgba(249, 115, 22, 0.05) 0%, transparent 55%),
-        #05070F;
+      padding: 56px 72px 52px;
     }
 
-    /* Subtle grid overlay */
-    .canvas::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-      background-size: 54px 54px;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* ── Corner accents ─────────────────────────────────────────────────────── */
+    /* ── Corner brackets ─────────────────────────────────────────── */
     .corner-tr {
       position: absolute;
       top: 36px;
       right: 36px;
-      width: 44px;
-      height: 44px;
-      border-top: 2px solid #F97316;
-      border-right: 2px solid #F97316;
-      z-index: 3;
+      width: 52px;
+      height: 52px;
+      border-top: 3px solid #0A7CFF;
+      border-right: 3px solid #0A7CFF;
     }
+
     .corner-bl {
       position: absolute;
-      bottom: 80px;
+      bottom: 36px;
       left: 36px;
-      width: 44px;
-      height: 44px;
-      border-bottom: 2px solid #3B82F6;
-      border-left: 2px solid #3B82F6;
-      z-index: 3;
+      width: 52px;
+      height: 52px;
+      border-bottom: 3px solid #0A7CFF;
+      border-left: 3px solid #0A7CFF;
     }
 
-    /* ── Bottom gradient bar ─────────────────────────────────────────────────── */
-    .bottom-bar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(
-        90deg,
-        transparent 0%,
-        #F97316 30%,
-        rgba(249,115,22,0.35) 70%,
-        transparent 100%
-      );
-      z-index: 4;
-    }
-
-    /* ── Main layout ─────────────────────────────────────────────────────────── */
-    .content-area {
-      position: relative;
-      z-index: 1;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
+    /* ── Top badge ───────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
       align-items: center;
-      padding: 44px 0 56px;
-    }
-
-    /* ── Top: category tag ───────────────────────────────────────────────────── */
-    .category-tag-row {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      width: 880px;
-    }
-
-    .category-tag {
-      font-family: 'DM Mono', monospace;
-      font-size: 13px;
-      font-weight: 500;
-      letter-spacing: 0.20em;
-      text-transform: uppercase;
-      color: #F97316;
-      background: rgba(249, 115, 22, 0.08);
-      border: 1px solid rgba(249, 115, 22, 0.30);
-      padding: 6px 16px;
-      border-radius: 3px;
-      white-space: nowrap;
+      gap: 10px;
+      background: #FFFFFF;
+      border: 1.5px solid #C8DAEA;
+      border-radius: 10px;
+      padding: 10px 20px 10px 14px;
+      margin-bottom: 52px;
+      box-shadow: 0 2px 10px rgba(10, 37, 64, 0.06);
       flex-shrink: 0;
     }
 
-    .tag-line {
-      flex: 1;
-      height: 1px;
-      background: linear-gradient(
-        to right,
-        rgba(249, 115, 22, 0.35),
-        transparent
-      );
-      margin-left: 16px;
+    .badge-icon {
+      width: 22px;
+      height: 22px;
+      color: #0A7CFF;
+      flex-shrink: 0;
     }
 
-    /* ── Middle block ────────────────────────────────────────────────────────── */
-    .middle {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 100%;
-      gap: 0;
-      margin-top: 52px;
-    }
-
-    /* Hook — dominant but not overwhelming */
-    .hook {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      font-size: 56px;
-      font-weight: 800;
-      color: #FFFFFF;
-      text-align: center;
-      line-height: 1.12;
-      letter-spacing: -0.02em;
-      padding: 0 68px;
-      margin-bottom: 20px;
-    }
-
-    /* Subheading — supporting context */
-    .subheading {
+    .badge-label {
       font-family: 'Inter', sans-serif;
-      font-size: 22px;
-      font-weight: 400;
-      color: rgba(255, 255, 255, 0.52);
+      font-size: 14px;
+      font-weight: 700;
+      color: #0A7CFF;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    /* ── Title block ─────────────────────────────────────────────── */
+    .title-block {
       text-align: center;
-      line-height: 1.5;
-      padding: 0 100px;
-      margin-bottom: 36px;
+      flex-shrink: 0;
     }
 
-    /* Orange-glow divider */
+    .hook-line {
+      font-family: 'Inter', sans-serif;
+      font-size: 88px;
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    #hookWord1 { color: #0A7CFF; }
+    #hookWord2 { color: #0A2540; }
+
+    .subtitle {
+      font-family: 'Inter', sans-serif;
+      font-size: 24px;
+      font-weight: 400;
+      color: #8FA5BE;
+      text-align: center;
+      margin-top: 14px;
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle-accent {
+      width: 44px;
+      height: 3px;
+      background: #0A7CFF;
+      border-radius: 2px;
+      margin: 12px auto 0;
+    }
+
+    /* ── Divider ─────────────────────────────────────────────────── */
     .divider {
-      width: 760px;
+      width: 100%;
       height: 1px;
-      background: linear-gradient(
-        90deg,
-        transparent 0%,
-        rgba(249,115,22,0.20) 20%,
-        #F97316 50%,
-        rgba(249,115,22,0.20) 80%,
-        transparent 100%
-      );
-      position: relative;
-      margin-bottom: 44px;
-    }
-    .divider::after {
-      content: '';
-      position: absolute;
-      top: -3px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 120px;
-      height: 7px;
-      background: radial-gradient(ellipse, rgba(249,115,22,0.55) 0%, transparent 100%);
-      filter: blur(4px);
+      background: rgba(10, 37, 64, 0.10);
+      margin: 44px 0 36px;
+      flex-shrink: 0;
     }
 
-    /* ── Bullets ─────────────────────────────────────────────────────────────── */
+    /* ── Bullets ─────────────────────────────────────────────────── */
     .bullets {
+      flex: 1;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 28px;
-      width: 880px;
     }
 
     .bullet {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 0;
-      width: 100%;
+      padding: 24px 0;
+      border-bottom: 1px dashed rgba(10, 37, 64, 0.16);
+    }
+
+    .bullet:first-child {
+      border-top: 1px dashed rgba(10, 37, 64, 0.16);
     }
 
     .bullet-num {
-      font-family: 'DM Mono', monospace;
-      font-size: 14px;
-      font-weight: 500;
-      color: #F97316;
-      letter-spacing: 0.06em;
-      min-width: 32px;
-      flex-shrink: 0;
-    }
-
-    .tick-left {
-      width: 34px;
-      height: 1px;
-      background: linear-gradient(to right, rgba(249,115,22,0.60), rgba(249,115,22,0.20));
-      margin: 0 16px 0 10px;
-      flex-shrink: 0;
-    }
-
-    /* Bullet text — the main readable content */
-    .bullet-text {
       font-family: 'Inter', sans-serif;
-      font-size: 30px;
-      font-weight: 600;
-      color: rgba(255, 255, 255, 0.92);
-      text-align: center;
-      line-height: 1.35;
-      flex: 1;
+      font-size: 17px;
+      font-weight: 800;
+      color: #0A2540;
+      min-width: 44px;
+      flex-shrink: 0;
+      letter-spacing: 0.04em;
     }
 
-    .tick-right {
-      width: 34px;
-      height: 1px;
-      background: linear-gradient(to left, rgba(249,115,22,0.60), rgba(249,115,22,0.20));
-      margin: 0 10px 0 16px;
+    .bullet-connector {
+      width: 22px;
+      height: 0;
+      border-top: 2px dashed rgba(10, 37, 64, 0.22);
+      margin-right: 16px;
       flex-shrink: 0;
     }
 
-    /* ── Footer ──────────────────────────────────────────────────────────────── */
+    .bullet-text {
+      flex: 1;
+      font-family: 'Inter', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #0A2540;
+      line-height: 1.3;
+    }
+
+    .bullet-tail {
+      display: flex;
+      align-items: center;
+      margin-left: 12px;
+      flex-shrink: 0;
+    }
+
+    .tail-line {
+      width: 36px;
+      height: 2px;
+      background: #0A7CFF;
+      opacity: 0.55;
+    }
+
+    .tail-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #0A7CFF;
+      flex-shrink: 0;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────── */
     .footer {
-      margin-top: auto;
+      margin-top: 36px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex-shrink: 0;
+    }
+
+    .avatar {
+      width: 54px;
+      height: 54px;
+      flex-shrink: 0;
+    }
+
+    .footer-info {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 5px;
+      gap: 4px;
     }
 
     .footer-name {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      font-size: 22px;
+      font-family: 'Inter', sans-serif;
+      font-size: 20px;
       font-weight: 700;
-      color: #FFFFFF;
-      letter-spacing: 0.01em;
+      color: #0A2540;
     }
 
     .footer-title {
       font-family: 'Inter', sans-serif;
       font-size: 15px;
       font-weight: 400;
-      color: rgba(255, 255, 255, 0.38);
-      letter-spacing: 0.04em;
+      color: #8FA5BE;
     }
 
     .footer-postnum {
-      font-family: 'DM Mono', monospace;
-      font-size: 12px;
-      color: rgba(249, 115, 22, 0.55);
-      letter-spacing: 0.12em;
+      display: flex;
+      align-items: center;
+      gap: 7px;
       margin-top: 2px;
+    }
+
+    .post-dash {
+      width: 20px;
+      height: 2px;
+      background: #0A7CFF;
+      border-radius: 1px;
+    }
+
+    .post-text {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: #0A7CFF;
     }
   </style>
 </head>
 <body>
 <div class="canvas">
 
-  <!-- Corner accents -->
   <div class="corner-tr"></div>
   <div class="corner-bl"></div>
 
-  <!-- Bottom bar -->
-  <div class="bottom-bar"></div>
+  <!-- Badge -->
+  <div>
+    <div class="badge">
+      <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+      <span class="badge-label">{{CATEGORY_LABEL}}</span>
+    </div>
+  </div>
 
-  <!-- Main content -->
-  <div class="content-area">
+  <!-- Title: first word blue, rest dark -->
+  <div class="title-block">
+    <div class="hook-line">
+      <span id="hookWord1"></span><span id="hookWord2"></span>
+    </div>
+    <div class="subtitle">{{HEADLINE}}</div>
+    <div class="subtitle-accent"></div>
+  </div>
 
-    <!-- Top: category tag with extending line -->
-    <div class="category-tag-row">
-      <span class="category-tag">{{CATEGORY_LABEL}}</span>
-      <div class="tag-line"></div>
+  <!-- Hidden hook source for JS split -->
+  <div id="hookData" style="display:none">{{HOOK}}</div>
+
+  <!-- Divider -->
+  <div class="divider"></div>
+
+  <!-- Bullets -->
+  <div class="bullets">
+
+    <div class="bullet">
+      <span class="bullet-num">01</span>
+      <div class="bullet-connector"></div>
+      <span class="bullet-text">{{BULLET_1}}</span>
+      <div class="bullet-tail"><div class="tail-line"></div><div class="tail-dot"></div></div>
     </div>
 
-    <!-- Middle: hook → subheading → divider → bullets -->
-    <div class="middle">
-      <div class="hook">{{HOOK}}</div>
-
-      <div class="subheading">{{HEADLINE}}</div>
-
-      <div class="divider"></div>
-
-      <div class="bullets">
-
-        <div class="bullet">
-          <span class="bullet-num">01</span>
-          <div class="tick-left"></div>
-          <span class="bullet-text">{{BULLET_1}}</span>
-          <div class="tick-right"></div>
-        </div>
-
-        <div class="bullet">
-          <span class="bullet-num">02</span>
-          <div class="tick-left"></div>
-          <span class="bullet-text">{{BULLET_2}}</span>
-          <div class="tick-right"></div>
-        </div>
-
-        <div class="bullet">
-          <span class="bullet-num">03</span>
-          <div class="tick-left"></div>
-          <span class="bullet-text">{{BULLET_3}}</span>
-          <div class="tick-right"></div>
-        </div>
-
-        <div class="bullet" style="{{BULLET_4_STYLE}}">
-          <span class="bullet-num">04</span>
-          <div class="tick-left"></div>
-          <span class="bullet-text">{{BULLET_4}}</span>
-          <div class="tick-right"></div>
-        </div>
-
-        <div class="bullet" style="{{BULLET_5_STYLE}}">
-          <span class="bullet-num">05</span>
-          <div class="tick-left"></div>
-          <span class="bullet-text">{{BULLET_5}}</span>
-          <div class="tick-right"></div>
-        </div>
-
-      </div>
+    <div class="bullet">
+      <span class="bullet-num">02</span>
+      <div class="bullet-connector"></div>
+      <span class="bullet-text">{{BULLET_2}}</span>
+      <div class="bullet-tail"><div class="tail-line"></div><div class="tail-dot"></div></div>
     </div>
 
-    <!-- Bottom: name / title / post number -->
-    <div class="footer">
-      <div class="footer-name">Muhammad Usman</div>
-      <div class="footer-title">AI Automation Engineer</div>
-      <div class="footer-postnum">POST #{{POST_NUMBER}}</div>
+    <div class="bullet">
+      <span class="bullet-num">03</span>
+      <div class="bullet-connector"></div>
+      <span class="bullet-text">{{BULLET_3}}</span>
+      <div class="bullet-tail"><div class="tail-line"></div><div class="tail-dot"></div></div>
+    </div>
+
+    <div class="bullet" style="{{BULLET_4_STYLE}}">
+      <span class="bullet-num">04</span>
+      <div class="bullet-connector"></div>
+      <span class="bullet-text">{{BULLET_4}}</span>
+      <div class="bullet-tail"><div class="tail-line"></div><div class="tail-dot"></div></div>
+    </div>
+
+    <div class="bullet" style="{{BULLET_5_STYLE}}">
+      <span class="bullet-num">05</span>
+      <div class="bullet-connector"></div>
+      <span class="bullet-text">{{BULLET_5}}</span>
+      <div class="bullet-tail"><div class="tail-line"></div><div class="tail-dot"></div></div>
     </div>
 
   </div>
 
+  <!-- Footer -->
+  <div class="footer">
+    <svg class="avatar" viewBox="0 0 54 54" fill="none">
+      <circle cx="27" cy="19" r="10" fill="#B4C8DC"/>
+      <path d="M5 50C5 37 49 37 49 50" fill="#B4C8DC"/>
+      <circle cx="39" cy="26" r="6" fill="#C8DAEC"/>
+      <path d="M33 50C33 43 45 43 45 50" fill="#C8DAEC"/>
+    </svg>
+    <div class="footer-info">
+      <div class="footer-name">Muhammad Usman</div>
+      <div class="footer-title">{{TITLE}}</div>
+      <div class="footer-postnum">
+        <div class="post-dash"></div>
+        <span class="post-text">Post #{{POST_NUMBER}}</span>
+        <div class="post-dash"></div>
+      </div>
+    </div>
+  </div>
+
 </div>
+<script>
+  var hook = document.getElementById('hookData').textContent.trim();
+  var spaceIdx = hook.indexOf(' ');
+  if (spaceIdx === -1) {
+    document.getElementById('hookWord1').textContent = hook;
+  } else {
+    document.getElementById('hookWord1').textContent = hook.slice(0, spaceIdx);
+    document.getElementById('hookWord2').textContent = ' ' + hook.slice(spaceIdx + 1);
+  }
+</script>
 </body>
 </html>

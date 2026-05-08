@@ -6,264 +6,261 @@
   <meta name="viewport" content="width=1080">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    /* Block any external attribution marks */
-    [class*="gemini"],
-    [class*="watermark"],
-    [id*="watermark"],
-    [class*="logo"]:not(.our-logo),
-    iframe,
-    [class*="attribution"] {
-      display: none !important;
-    }
+    [class*="gemini"], [class*="watermark"], [id*="watermark"],
+    [class*="logo"]:not(.our-logo), iframe,
+    [class*="attribution"] { display: none !important; }
 
     body {
       width: 1080px;
       height: 1350px;
       overflow: hidden;
-      font-family: 'Inter', system-ui, sans-serif;
+      font-family: 'Inter', sans-serif;
     }
 
-    /* ── Consultant Slide Theme: Pure White, Dark Bold, Outcome-First ── */
     .canvas {
       width: 1080px;
       height: 1350px;
       position: relative;
-      display: flex;
-      flex-direction: column;
       background: #FFFFFF;
-    }
-
-    /* Top accent bar — dark navy */
-    .top-bar {
-      width: 100%;
-      height: 16px;
-      background: #0A2540;
-      flex-shrink: 0;
-    }
-
-    /* Main content area */
-    .content-area {
-      flex: 1;
       display: flex;
       flex-direction: column;
-      padding: 56px 90px 0;
-      position: relative;
+      padding: 60px 80px 56px;
     }
 
-    /* Category badge — minimal tag */
-    .category-badge {
+    /* ── Top badge ───────────────────────────────────────────────── */
+    .badge {
       display: inline-flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 36px;
+      gap: 14px;
+      margin-bottom: 52px;
+      flex-shrink: 0;
     }
 
-    .badge-bar {
-      width: 6px;
-      height: 30px;
+    .badge-icon-wrap {
+      width: 42px;
+      height: 42px;
       background: #0A7CFF;
-      border-radius: 3px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       flex-shrink: 0;
+    }
+
+    .badge-icon {
+      width: 22px;
+      height: 22px;
+      color: #FFFFFF;
     }
 
     .badge-label {
       font-family: 'Inter', sans-serif;
+      font-size: 16px;
       font-weight: 700;
-      font-size: 17px;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
       color: #0A2540;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
     }
 
-    /* Outcome headline — the BIGGEST element on the slide */
-    .headline {
-      font-family: 'Lexend', sans-serif;
-      font-size: 76px;
+    /* ── Main heading ────────────────────────────────────────────── */
+    .heading-block {
+      flex-shrink: 0;
+      margin-bottom: 44px;
+    }
+
+    .heading-hook {
+      font-family: 'Inter', sans-serif;
+      font-size: 92px;
       font-weight: 900;
       color: #0A2540;
-      line-height: 1.08;
-      margin-bottom: 48px;
-      max-width: 880px;
+      line-height: 1.0;
+      letter-spacing: -0.03em;
+      display: block;
     }
 
-    /* Section label above the steps */
+    .heading-headline {
+      font-family: 'Inter', sans-serif;
+      font-size: 92px;
+      font-weight: 900;
+      color: #0A7CFF;
+      line-height: 1.0;
+      letter-spacing: -0.03em;
+      display: block;
+    }
+
+    /* ── Section label ───────────────────────────────────────────── */
     .section-label {
       font-family: 'Inter', sans-serif;
-      font-weight: 700;
-      font-size: 15px;
-      letter-spacing: 0.20em;
+      font-size: 14px;
+      font-weight: 600;
+      color: #A0B0C4;
+      letter-spacing: 0.22em;
       text-transform: uppercase;
-      color: #0A7CFF;
-      margin-bottom: 30px;
+      margin-bottom: 28px;
+      flex-shrink: 0;
     }
 
-    /* Step bullets — clean numbered list */
+    /* ── Bullet cards ────────────────────────────────────────────── */
     .bullets {
+      flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 0;
+      gap: 18px;
     }
 
     .bullet {
       display: flex;
-      flex-direction: row;
-      align-items: flex-start;
-      gap: 28px;
-      padding: 24px 0;
-      border-bottom: 1px solid #E8EDF2;
+      align-items: center;
+      gap: 24px;
+      background: #FFFFFF;
+      border: 1.5px solid #E8EFF7;
+      border-radius: 14px;
+      padding: 22px 28px;
+      box-shadow: 0 2px 12px rgba(10, 37, 64, 0.05);
     }
 
-    .bullet:first-child {
-      border-top: 1px solid #E8EDF2;
+    .step-circle {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #0A7CFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
 
     .step-num {
-      font-family: 'Lexend', sans-serif;
-      font-size: 42px;
-      font-weight: 900;
-      color: #0A7CFF;
-      line-height: 1;
-      min-width: 60px;
-      flex-shrink: 0;
-      padding-top: 4px;
+      font-family: 'Inter', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: 0.04em;
     }
 
     .bullet-text {
       font-family: 'Inter', sans-serif;
       font-size: 27px;
-      font-weight: 500;
-      line-height: 1.45;
-      color: #1A1A2E;
+      font-weight: 700;
+      color: #0A2540;
+      line-height: 1.35;
       flex: 1;
-      padding-top: 4px;
-      word-break: break-word;
     }
 
-    /* Bottom divider */
-    .bottom-divider {
-      position: absolute;
-      bottom: 128px;
-      left: 90px;
-      right: 90px;
-      height: 2px;
-      background: #E8EDF2;
-    }
-
-    /* Footer */
+    /* ── Footer ──────────────────────────────────────────────────── */
     .footer {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 0 90px 0;
-      height: 128px;
+      margin-top: 36px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      gap: 18px;
+      flex-shrink: 0;
     }
 
-    .footer-left {
+    .avatar {
+      width: 52px;
+      height: 52px;
+      flex-shrink: 0;
+    }
+
+    .footer-info {
       display: flex;
       flex-direction: column;
-      gap: 5px;
+      gap: 4px;
     }
 
     .footer-name {
-      font-family: 'Lexend', sans-serif;
+      font-family: 'Inter', sans-serif;
+      font-size: 20px;
       font-weight: 700;
-      font-size: 24px;
       color: #0A2540;
     }
 
     .footer-title {
       font-family: 'Inter', sans-serif;
+      font-size: 15px;
       font-weight: 400;
-      font-size: 16px;
-      color: #5A6A7E;
+      color: #8FA5BE;
     }
 
     .footer-postnum {
       font-family: 'Inter', sans-serif;
-      font-size: 13px;
-      color: #AAB4BE;
-    }
-
-    /* Bottom accent bar — gradient */
-    .bottom-bar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 8px;
-      background: linear-gradient(to right, #0A2540, #0A7CFF);
+      font-size: 14px;
+      font-weight: 600;
+      color: #0A7CFF;
+      margin-top: 2px;
     }
   </style>
 </head>
 <body>
 <div class="canvas">
 
-  <!-- Top accent bar -->
-  <div class="top-bar"></div>
-
-  <!-- Main content -->
-  <div class="content-area">
-
-    <!-- Category badge -->
-    <div class="category-badge">
-      <div class="badge-bar"></div>
+  <!-- Badge -->
+  <div>
+    <div class="badge">
+      <div class="badge-icon-wrap">
+        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+      </div>
       <span class="badge-label">{{CATEGORY_LABEL}}</span>
     </div>
+  </div>
 
-    <!-- Outcome headline — dominant element -->
-    <h1 class="headline">{{HEADLINE}}</h1>
+  <!-- Heading: hook (dark) + headline (blue) -->
+  <div class="heading-block">
+    <span class="heading-hook">{{HOOK}}</span>
+    <span class="heading-headline">{{HEADLINE}}</span>
+  </div>
 
-    <!-- Steps section label -->
-    <div class="section-label">The Playbook</div>
+  <!-- Section label -->
+  <div class="section-label">The Playbook</div>
 
-    <!-- Numbered steps -->
-    <div class="bullets">
-      <div class="bullet">
-        <span class="step-num">01</span>
-        <span class="bullet-text">{{BULLET_1}}</span>
-      </div>
-      <div class="bullet">
-        <span class="step-num">02</span>
-        <span class="bullet-text">{{BULLET_2}}</span>
-      </div>
-      <div class="bullet">
-        <span class="step-num">03</span>
-        <span class="bullet-text">{{BULLET_3}}</span>
-      </div>
-      <div class="bullet" style="{{BULLET_4_STYLE}}">
-        <span class="step-num">04</span>
-        <span class="bullet-text">{{BULLET_4}}</span>
-      </div>
-      <div class="bullet" style="{{BULLET_5_STYLE}}">
-        <span class="step-num">05</span>
-        <span class="bullet-text">{{BULLET_5}}</span>
-      </div>
+  <!-- Bullet cards -->
+  <div class="bullets">
+
+    <div class="bullet">
+      <div class="step-circle"><span class="step-num">01</span></div>
+      <span class="bullet-text">{{BULLET_1}}</span>
+    </div>
+
+    <div class="bullet">
+      <div class="step-circle"><span class="step-num">02</span></div>
+      <span class="bullet-text">{{BULLET_2}}</span>
+    </div>
+
+    <div class="bullet">
+      <div class="step-circle"><span class="step-num">03</span></div>
+      <span class="bullet-text">{{BULLET_3}}</span>
+    </div>
+
+    <div class="bullet" style="{{BULLET_4_STYLE}}">
+      <div class="step-circle"><span class="step-num">04</span></div>
+      <span class="bullet-text">{{BULLET_4}}</span>
+    </div>
+
+    <div class="bullet" style="{{BULLET_5_STYLE}}">
+      <div class="step-circle"><span class="step-num">05</span></div>
+      <span class="bullet-text">{{BULLET_5}}</span>
     </div>
 
   </div>
 
-  <!-- Bottom divider -->
-  <div class="bottom-divider"></div>
-
   <!-- Footer -->
   <div class="footer">
-    <div class="footer-left">
-      <div class="footer-name">{{NAME}}</div>
+    <svg class="avatar" viewBox="0 0 52 52" fill="none">
+      <circle cx="26" cy="52" r="22" fill="#E0EAF5"/>
+      <circle cx="26" cy="18" r="10" fill="#B4C8DC"/>
+    </svg>
+    <div class="footer-info">
+      <div class="footer-name">Muhammad Usman</div>
       <div class="footer-title">{{TITLE}}</div>
       <div class="footer-postnum">Post #{{POST_NUMBER}}</div>
     </div>
   </div>
-
-  <!-- Bottom accent bar -->
-  <div class="bottom-bar"></div>
 
 </div>
 </body>
