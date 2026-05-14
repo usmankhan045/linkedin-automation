@@ -37,3 +37,9 @@ drop trigger if exists vault_items_updated_at on vault_items;
 create trigger vault_items_updated_at
   before update on vault_items
   for each row execute procedure set_vault_items_updated_at();
+
+alter table vault_items enable row level security;
+
+-- Backend automation uses SUPABASE_SERVICE_ROLE_KEY. Do not expose vault state
+-- to public browser/API roles.
+revoke all on table vault_items from anon, authenticated;

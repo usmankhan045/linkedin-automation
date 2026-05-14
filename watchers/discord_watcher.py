@@ -57,11 +57,23 @@ COMMANDS_CHANNEL_ID = int(os.getenv("DISCORD_COMMANDS_CHANNEL_ID", "0"))
 WEBHOOK_MAP: dict[str, Optional[str]] = {
     "needs_action": os.getenv("DISCORD_WEBHOOK_NEEDS_ACTION"),
     "approval":     os.getenv("DISCORD_WEBHOOK_APPROVAL"),
-    "linkedin":     os.getenv("DISCORD_WEBHOOK_LINKEDIN"),
+    "linkedin":     os.getenv("DISCORD_WEBHOOK_LINKEDIN") or os.getenv("DISCORD_WEBHOOK_CONFIRMATIONS"),
     "errors":       os.getenv("DISCORD_WEBHOOK_ERRORS"),
     "briefings":    os.getenv("DISCORD_WEBHOOK_BRIEFINGS"),
     "commands":     os.getenv("DISCORD_WEBHOOK_COMMANDS"),
     "ready_posts":  os.getenv("DISCORD_WEBHOOK_READY_POSTS"),
+    "confirmations": os.getenv("DISCORD_WEBHOOK_CONFIRMATIONS"),
+}
+
+WEBHOOK_ENV_NAMES: dict[str, str] = {
+    "needs_action": "DISCORD_WEBHOOK_NEEDS_ACTION",
+    "approval": "DISCORD_WEBHOOK_APPROVAL",
+    "linkedin": "DISCORD_WEBHOOK_LINKEDIN or DISCORD_WEBHOOK_CONFIRMATIONS",
+    "errors": "DISCORD_WEBHOOK_ERRORS",
+    "briefings": "DISCORD_WEBHOOK_BRIEFINGS",
+    "commands": "DISCORD_WEBHOOK_COMMANDS",
+    "ready_posts": "DISCORD_WEBHOOK_READY_POSTS",
+    "confirmations": "DISCORD_WEBHOOK_CONFIRMATIONS",
 }
 
 COLORS: dict[str, int] = {
@@ -100,7 +112,8 @@ def notify(
     """
     url = WEBHOOK_MAP.get(channel)
     if not url:
-        print(f"[discord_watcher] No webhook URL for channel '{channel}' — set DISCORD_WEBHOOK_{channel.upper()}")
+        env_name = WEBHOOK_ENV_NAMES.get(channel, f"DISCORD_WEBHOOK_{channel.upper()}")
+        print(f"[discord_watcher] No webhook URL for channel '{channel}' — set {env_name}")
         return False
 
     payload: dict = {

@@ -38,6 +38,7 @@ CREATE INDEX IF NOT EXISTS idx_posts_linkedin_urn    ON posts(linkedin_urn);
 CREATE INDEX IF NOT EXISTS idx_posts_published_at   ON posts(published_at);
 CREATE INDEX IF NOT EXISTS idx_posts_category       ON posts(category);
 CREATE INDEX IF NOT EXISTS idx_posts_audience       ON posts(audience);
+ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 
 
 -- ── processed_comments ────────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS processed_comments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_processed_comments_post ON processed_comments(post_linkedin_urn);
+ALTER TABLE processed_comments ENABLE ROW LEVEL SECURITY;
 
 
 -- ── config ────────────────────────────────────────────────────────────────────
@@ -86,6 +88,7 @@ DROP TRIGGER IF EXISTS config_updated_at ON config;
 CREATE TRIGGER config_updated_at
     BEFORE UPDATE ON config
     FOR EACH ROW EXECUTE FUNCTION update_config_updated_at();
+ALTER TABLE config ENABLE ROW LEVEL SECURITY;
 
 
 -- ── content_backlog ───────────────────────────────────────────────────────────
@@ -104,6 +107,7 @@ CREATE TABLE IF NOT EXISTS content_backlog (
 );
 
 CREATE INDEX IF NOT EXISTS idx_content_backlog_used ON content_backlog(used);
+ALTER TABLE content_backlog ENABLE ROW LEVEL SECURITY;
 
 
 -- ── stories ───────────────────────────────────────────────────────────────────
@@ -121,6 +125,7 @@ CREATE TABLE IF NOT EXISTS stories (
 );
 
 CREATE INDEX IF NOT EXISTS idx_stories_status ON stories(status);
+ALTER TABLE stories ENABLE ROW LEVEL SECURITY;
 
 
 -- ── leads_seen ────────────────────────────────────────────────────────────────
@@ -140,3 +145,13 @@ CREATE TABLE IF NOT EXISTS leads_seen (
 
 CREATE INDEX IF NOT EXISTS idx_leads_seen_url ON leads_seen(post_url);
 CREATE INDEX IF NOT EXISTS idx_leads_seen_found_at ON leads_seen(found_at);
+ALTER TABLE leads_seen ENABLE ROW LEVEL SECURITY;
+
+-- This automation runs through SUPABASE_SERVICE_ROLE_KEY only.
+-- Keep direct browser/API roles locked out unless explicit policies are added.
+REVOKE ALL ON TABLE posts FROM anon, authenticated;
+REVOKE ALL ON TABLE processed_comments FROM anon, authenticated;
+REVOKE ALL ON TABLE config FROM anon, authenticated;
+REVOKE ALL ON TABLE content_backlog FROM anon, authenticated;
+REVOKE ALL ON TABLE stories FROM anon, authenticated;
+REVOKE ALL ON TABLE leads_seen FROM anon, authenticated;

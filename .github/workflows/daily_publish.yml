@@ -17,6 +17,8 @@ env:
   SUPABASE_URL:                    ${{ secrets.SUPABASE_URL }}
   SUPABASE_SERVICE_ROLE_KEY:       ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
   DISCORD_WEBHOOK_CONFIRMATIONS:   ${{ secrets.DISCORD_WEBHOOK_CONFIRMATIONS }}
+  DISCORD_WEBHOOK_LINKEDIN:        ${{ secrets.DISCORD_WEBHOOK_LINKEDIN }}
+  DISCORD_WEBHOOK_ERRORS:          ${{ secrets.DISCORD_WEBHOOK_ERRORS }}
   APP_TIMEZONE:                    ${{ secrets.APP_TIMEZONE }}
   SHEETS_TOPIC_BANK_TAB:           "Topic Bank"
 

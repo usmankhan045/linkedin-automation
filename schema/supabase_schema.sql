@@ -50,3 +50,11 @@ CREATE TRIGGER posts_updated_at
 CREATE INDEX IF NOT EXISTS idx_posts_status       ON posts(status);
 CREATE INDEX IF NOT EXISTS idx_posts_scheduled_at ON posts(scheduled_at);
 CREATE INDEX IF NOT EXISTS idx_stories_status     ON stories(status);
+
+ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stories ENABLE ROW LEVEL SECURITY;
+
+-- This automation runs through SUPABASE_SERVICE_ROLE_KEY only.
+-- Keep direct browser/API roles locked out unless explicit policies are added.
+REVOKE ALL ON TABLE posts FROM anon, authenticated;
+REVOKE ALL ON TABLE stories FROM anon, authenticated;
