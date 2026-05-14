@@ -113,7 +113,7 @@ This repository uses a **WAT-style split**:
 ## Tech Stack
 
 ### Language & Runtime
-- **Python** (GitHub Actions workflows pin Python **3.11**)
+- **Python 3.11** (GitHub Actions workflows pin this version)
 - **Node.js/PM2** configs for long-running process management (`pm2_ecosystem*.config.js`)
 
 ### Core Python Libraries (`requirements.txt`)
@@ -162,7 +162,7 @@ This repository uses a **WAT-style split**:
 - `update_config_updated_at()` trigger for config
 - `set_vault_items_updated_at()` trigger for vault_items
 
-> Note: There are two schema files (`supabase/schema.sql` and `schema/supabase_schema.sql`) with different evolution stages. Use one consistent schema strategy for your environment.
+> Note: The repo currently contains both `schema/supabase_schema.sql` (broader current schema) and `supabase/schema.sql` (legacy/alternate shape). Pick one as the authority in your environment and avoid mixing both in the same database.
 
 ---
 
