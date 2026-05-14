@@ -162,7 +162,7 @@ This repository uses a **WAT-style split**:
 - `update_config_updated_at()` trigger for config
 - `set_vault_items_updated_at()` trigger for vault_items
 
-> Note: The repo currently contains both `schema/supabase_schema.sql` (broader current schema) and `supabase/schema.sql` (legacy/alternate shape). Pick one as the authority in your environment and avoid mixing both in the same database.
+> Note: The repo currently contains both `schema/supabase_schema.sql` (broader current schema) and `supabase/schema.sql` (legacy/alternate shape). In practice, treat `schema/supabase_schema.sql` as the primary source and `supabase/schema.sql` as deprecated legacy to avoid schema drift.
 
 ---
 
