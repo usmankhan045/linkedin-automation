@@ -166,7 +166,7 @@ This repository uses a **WAT-style split**:
 
 ---
 
-## Project Structure & Key Entrypoints
+## Project Structure & Key Entry Points
 
 ```text
 .
@@ -183,7 +183,7 @@ This repository uses a **WAT-style split**:
 └── .env.example                # Environment variable template
 ```
 
-Primary entrypoints used in practice:
+Primary entry points used in practice:
 - `tools/generate_posts.py`
 - `tools/generate_images.py`
 - `tools/publish_post.py`
