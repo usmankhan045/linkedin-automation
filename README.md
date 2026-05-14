@@ -1,102 +1,359 @@
 # LinkedIn Automation System
 
-An intelligent, fully automated end-to-end LinkedIn management system. This project is built using the **WAT (Workflows, Agents, Tools)** framework, combining probabilistic AI decision-making with deterministic execution scripts.
+An automation system for planning, generating, approving, publishing, and monitoring LinkedIn content using Python scripts, GitHub Actions, Discord bots/webhooks, Google Sheets, and Supabase.
 
-## 🧠 Architecture: The WAT Framework
+This repository uses a **WAT-style split**:
+- **Workflows** (`workflows/*.md`) for SOP/instructions
+- **Agents/orchestration** (`orchestrator.py`, Discord bots)
+- **Tools** (`tools/*.py`) for deterministic execution
 
-This system runs on a separation of concerns that ensures reliability, observability, and self-improvement:
+---
 
-1. **Workflows (Layer 1 - Instructions)**: Markdown SOPs (Standard Operating Procedures) in the `workflows/` directory. These define objectives, required inputs, edge cases, and which tools to use. They act as the overarching instructions for the system.
-2. **Agents (Layer 2 - The Brain)**: The AI coordinator (powered by OpenAI, Anthropic, or Groq) reads the workflows, makes intelligent decisions, orchestrates execution sequences, handles failures gracefully, and asks clarifying questions.
-3. **Tools (Layer 3 - Execution)**: Deterministic Python scripts in the `tools/` directory. These handle API calls, data scraping, database interactions, and file manipulations. 
+## Features
 
-*Why this matters:* By offloading exact execution to deterministic Python scripts (Tools), the AI Agent avoids compounding hallucination errors and focuses strictly on orchestration and reasoning.
+### 1) Content Planning & Weekly Batch Generation
+- Reads pending topics from Google Sheets **Topic Bank** (`tools/generate_posts.py` via `tools/sheets_helper.py`)
+- Generates up to 5 posts for next Mon–Fri with Groq (`GROQ_MODEL`, default `llama-3.3-70b-versatile`)
+- Auto-assigns audience/category logic by weekday (engineer vs founder)
+- Writes back to Sheets columns including:
+  - `post_text`, `hook`, `bullet_points`, `headline`, `audience`, `status`, `scheduled_date`
+- Duplicate-week guard: skips generation if the upcoming week already has scheduled content
+- Includes `--dry-run` mode for integration checks without writing production content
 
-## ✨ Core Features & Workflows
+### 2) Image Generation (HTML Template Rendering)
+- `tools/generate_images.py` renders branded 1080x1350 PNGs using **Playwright + Chromium** from HTML templates:
+  - `templates/technical_post.html`
+  - `templates/business_post.html`
+  - `templates/story_post.html`
+- Uses extracted `hook/headline/bullet_points` for infographic layout
+- Uploads PNGs to Supabase Storage bucket (`SUPABASE_IMAGE_BUCKET`, default `post-images`)
+- Writes public image URL back to Sheets `image_path`
+- Falls back gracefully if render/upload fails (post can still proceed text-only path)
 
-The repository contains several key workflows orchestrating a complete LinkedIn growth engine. Below is a detailed breakdown of how each feature operates within the WAT framework:
+### 3) Ready-Post Intake from Discord (Verbatim Content)
+- In `#ready-posts`, `tools/ready_post_intake.py`:
+  - Uses pasted post text **as-is** (no rewriting)
+  - Extracts structure (hook/headline/bullets/category/audience) with Groq
+  - Renders image with Playwright
+  - Stores post in Supabase
+  - Queues next available weekday in Sheets
+  - Sends Discord preview with **Approve & Schedule** button
+- Includes idempotent dedup by Discord message ID (`topic=ready:{message_id}`)
 
-### 1. Story Intake & Ingestion (`story_intake.md`, `ingest_story.md`)
-* **How it works:** The system ingests raw inputs such as random notes, URLs, shower thoughts, or voice transcriptions. The AI Agent parses these unstructured inputs, extracts the core narrative or value proposition, and structures them into workable "story concepts." 
-* **The execution:** It offloads data processing and saving to Python tools, which push these structured records to Supabase or Google Sheets for future use.
+### 4) Story Intake from Discord
+- In `#stories`, `tools/story_intake.py`:
+  - Validates story length and deduplicates submissions
+  - Uses Groq to transform raw story into publish-ready post + extracted points
+  - Saves story + post in Supabase
+  - Schedules next available Saturday slot in Sheets
+  - Responds with preview and scheduling status in Discord
 
-### 2. Content Generation (`generate_post.md`, `generate_image.md`)
-* **How it works:** Taking the structured story concepts from the database, the AI ghostwrites full LinkedIn posts. It acts as an expert copywriter, applying specific tone guidelines, formatting rules (like hooks, line breaks, and strong call-to-actions), and constraints defined in the workflow. 
-* **The execution:** If the post requires media, the image generation workflow triggers AI image-generation tools to create relevant visuals, ensuring rich media posts are ready for the feed.
+### 5) Publishing Pipeline (LinkedIn API)
+- `tools/publish_post.py` publishes approved content to LinkedIn UGC API
+- Supports:
+  - Registering LinkedIn image upload
+  - Uploading image bytes (from URL or local path)
+  - Posting text-only fallback if image upload fails
+  - Sheets status updates to `published`
+  - Supabase record insertion/update for published posts
+  - Discord publish confirmations and error alerts
+- Includes token handling:
+  - 401 handling with refresh-token attempt
+  - 429 rate-limit wait-and-retry
 
-### 3. Scheduling (`weekly_generation.md`, `weekly_schedule.md`)
-* **How it works:** Instead of generating one-off posts randomly, the system batches content creation. It aggregates the generated posts and logically slots them into a weekly calendar to ensure topic variety and optimal posting times.
-* **The execution:** Calendar and spreadsheet manipulation tools (via Google Sheets API) are executed to assign publication dates, update statuses, and manage the live content queue.
+### 6) Comment Triage & Routing
+- `tools/triage_comments.py`:
+  - Pulls comments for recently published posts (lookback window)
+  - Deduplicates via `processed_comments`
+  - Classifies comments in Groq batches into A/B/C:
+    - A = lead (Discord alert + drafted DM)
+    - B = content idea (append to Sheets backlog)
+    - C = noise (logged only)
+- Operational safeguard:
+  - Handles LinkedIn comments API 403 (**Marketing Developer Platform (MDP)** restriction) with one-per-week warning gate using `config` table
 
-### 4. Publishing (`publish_post.md`, `daily_publishing.md`)
-* **How it works:** A cron-like agent checks the scheduling queue daily. When a post is due, the agent triggers the publishing tools to log into LinkedIn natively and post the content, including uploading any generated images. This runs completely hands-off.
-* **The execution:** Deterministic browser automation scripts (`playwright`) navigate LinkedIn's DOM, handle the exact click paths, and submit posts safely, avoiding API limitations.
+### 7) Lead Hunting
+- `tools/search_leads.py`:
+  - Uses Apify LinkedIn post search actor + multiple query patterns
+  - Filters/deduplicates against `leads_seen`
+  - Uses Groq to score lead quality and draft outreach comment + DM
+  - Sends alerts for qualified leads to Discord webhook
+  - Includes retry/delay logic for 429 and transient failures
 
-### 5. Engagement & Triage (`comment_triage.md`, `dm_ghostwriter.md`)
-* **How it works:** Publishing is only half the battle. This workflow periodically scrapes incoming comments on recent posts and new Direct Messages. The AI filters out spam or noise, categorizes the engagement, and auto-drafts contextual, on-brand replies.
-* **The execution:** `playwright` is used to scrape the feed and DMs safely, LLMs analyze the sentiment and draft responses, and `discord.py` can be used to ping the human operator with drafted replies for approval before sending.
+### 8) Weekly Digest / Analytics Summary
+- `tools/weekly_digest.py`:
+  - Queries published posts from Supabase
+  - Computes weekly totals and weighted engagement score
+  - Compares against previous week (WoW deltas)
+  - Sends digest to Discord
+  - Updates `config.top_performers` (best-effort)
 
-### 6. Analytics (`weekly_digest.md`)
-* **How it works:** At the end of the week, the system pulls performance data (impressions, likes, comments, profile views) for the published content. It compiles this into a digest to analyze what topics resonated best.
-* **The execution:** Scraping tools gather the metrics, data processing scripts format them, and the agent outputs a digest to Google Sheets or Discord, feeding insights back into the Story Intake loop.
+### 9) Human-in-the-Loop Control & Ops
+- `watchers/discord_watcher.py` command bot for:
+  - `!approve`, `!reject`, `!queue`, `!status`, `!pause`, `!resume`
+- `tools/dm_ghostwriter.py` slash-command bot for DM drafting:
+  - `/draft`, `/biz`, `/tech`, `/follow`, `/reply`, `/comment`, `/retry`
+- Vault-based orchestration (`orchestrator.py` + `vault_sync.py`) for task lifecycle in Obsidian-style folders (`Needs_Action`, `Pending_Approval`, `Done`, etc.)
 
-## 🛠 Tech Stack
+### 10) Operational Behaviors (from code)
+- **Retries / backoff:** present for Groq, Apify, LinkedIn, and Supabase query paths
+- **Rate-limit handling:** explicit handling for 429 in multiple scripts
+- **Error handling:** non-fatal handling where possible + Discord notifications + vault logs
+- **Scheduling:** GitHub Actions cron + persistent PM2 processes for bots/orchestrator
+- **Deduplication:** comments, stories, lead URLs, ready-post intake all have dedup logic
+- **Not implemented in codebase:** proxy rotation, CAPTCHA solving, and interactive 2FA automation
 
-The tools and agents rely on a modern, robust tech stack:
+### 11) Present in Repository but Not Fully Wired / Legacy
+- `tools/linkedin_auth.py` exists but main flow is currently TODO/incomplete
+- `tools/generate_post.py`, `tools/generate_image.py`, and `tools/publish_linkedin.py` provide an alternate/legacy DB-first pipeline (still usable scripts, but main scheduled path currently uses `generate_posts.py` + `generate_images.py` + `publish_post.py`)
+- `mcp_servers/*` are stubs/partial integration surfaces
 
-* **Core Language:** Python 3 (82.8% of codebase)
-* **LLM Orchestration:** `openai`, `anthropic`, `groq` 
-* **Web Automation / Scraping:** `playwright` (to interact with LinkedIn's DOM safely)
-* **Database & Storage:** `supabase` (PostgreSQL via `PLpgSQL` + HTML templates)
-* **Data I/O & Integrations:** `gspread`, `google-api-python-client` (Google Sheets integration for CRM/content grids)
-* **Notifications/Alerts:** `discord.py` (For runtime logs or manual approval pings)
-* **Image Processing:** `Pillow`
+---
 
-## 📂 Directory Structure
+## Tech Stack
+
+### Language & Runtime
+- **Python 3.11** (GitHub Actions workflows pin this version)
+- **Node.js/PM2** configs for long-running process management (`pm2_ecosystem*.config.js`)
+
+### Core Python Libraries (`requirements.txt`)
+- **LLM:** `groq`, `anthropic`, `openai`, `google-genai`
+- **Data/API:** `requests`, `python-dotenv`
+- **Database/Storage:** `supabase`
+- **Google integration:** `gspread`, `google-auth`, `google-auth-httplib2`, `google-api-python-client`
+- **Discord:** `discord.py`
+- **Automation/rendering:** `playwright`
+- **Images:** `Pillow`
+- **Utilities:** `pytz`, `python-frontmatter`
+
+### External Services
+- **LinkedIn API v2** (UGC posting, social actions endpoints)
+- **Supabase Postgres + Storage**
+- **Google Sheets API**
+- **Discord bot + webhooks**
+- **Apify** (lead search source)
+- **GitHub Actions** (scheduled/dispatch automation)
+
+### Templates / UI Layer
+- HTML/CSS templates for social image rendering (Playwright screenshot pipeline)
+- Discord embeds/buttons for approval and operational control
+- Local HTTP callback scaffold for LinkedIn OAuth exists (`http.server` usage in `linkedin_auth.py`)
+
+### Deployment / Operations
+- GitHub Actions workflow automation (`.github/workflows/*.yml`)
+- PM2 process manager configs for persistent services
+- Deploy scripts for remote host sync/restart (`deploy.sh`, deploy workflows)
+
+---
+
+## Data & Storage
+
+### Supabase Tables in Schema Files
+- `posts`
+- `stories`
+- `processed_comments`
+- `config`
+- `content_backlog`
+- `leads_seen`
+- `vault_items` (in `supabase/vault_items.sql`)
+
+### PL/pgSQL / Trigger Routines Present
+- `update_updated_at()` trigger for posts (legacy schema file)
+- `update_config_updated_at()` trigger for config
+- `set_vault_items_updated_at()` trigger for vault_items
+
+> Note: The repo currently contains both `schema/supabase_schema.sql` (broader current schema) and `supabase/schema.sql` (legacy/alternate shape). In practice, treat `schema/supabase_schema.sql` as the primary source and `supabase/schema.sql` as deprecated legacy to avoid schema drift.
+
+---
+
+## Project Structure & Key Entry Points
 
 ```text
 .
-├── .tmp/                   # Temporary processing files (disposable)
-├── tools/                  # Python scripts for deterministic execution (Layer 3)
-├── workflows/              # Markdown SOPs defining workflows (Layer 1)
-├── supabase/               # DB migrations and configurations
-├── templates/              # HTML Templates and prompts
-├── requirements.txt        # Core dependencies
-└── .env.example            # Template for required API keys
+├── .github/workflows/          # Scheduled/manual GitHub Actions jobs
+├── tools/                      # Core automation scripts
+├── watchers/                   # Discord command watcher + notifications
+├── templates/                  # HTML image templates
+├── workflows/                  # SOP docs / workflow specs
+├── schema/                     # Main Supabase SQL schema
+├── supabase/                   # Additional SQL (legacy + vault items)
+├── orchestrator.py             # Vault/task orchestrator loop
+├── vault_sync.py               # Vault bridge + logging/dashboard helpers
+├── pm2_ecosystem*.config.js    # PM2 process configs
+└── .env.example                # Environment variable template
 ```
-*(Note: Cloud services like Google Sheets and Supabase serve as the final storage destinations; local files are strictly for temporary processing.)*
 
-## 🚀 Setup & Installation
+Primary entry points used in practice:
+- `tools/generate_posts.py`
+- `tools/generate_images.py`
+- `tools/publish_post.py`
+- `tools/triage_comments.py`
+- `tools/search_leads.py`
+- `tools/weekly_digest.py`
+- `tools/dm_ghostwriter.py`
+- `watchers/discord_watcher.py`
+- `orchestrator.py`
 
-**1. Clone the repository:**
+---
+
+## Setup / Installation
+
+### 1) Clone and install
 ```bash
 git clone https://github.com/usmankhan045/linkedin-automation.git
 cd linkedin-automation
+python -m pip install -r requirements.txt
 ```
 
-**2. Install dependencies:**
+### 2) Playwright browser install (required for image rendering)
 ```bash
-pip install -r requirements.txt
+playwright install chromium --with-deps
 ```
 
-**3. Environment Variables:**
-Copy `.env.example` to `.env` and fill in your credentials.
+### 3) Configure environment
 ```bash
 cp .env.example .env
 ```
-*Required secrets generally include API keys for LLMs (OpenAI/Anthropic/Groq), Supabase credentials, Discord webhook URLs, and LinkedIn session cookies depending on the tools.*
+Populate required values (see Configuration section below).
 
-**4. Setup OAuth (Google Sheets):**
-Ensure your `credentials.json` and `token.json` (gitignored) are placed in the root directory if you are using Google Sheets as part of the intake/scheduling CRM.
+### 4) Google credentials
+- Provide service account JSON via one of:
+  - `GOOGLE_SERVICE_ACCOUNT_JSON` (raw JSON string; common in CI)
+  - `GOOGLE_SERVICE_ACCOUNT_JSON_PATH` (path to local `credentials.json`)
+- Share the target sheet with the service account email.
 
-**5. Initialize the Agent:**
-Start the agent using your preferred runner. The Agent will begin by reading the target Markdown file in `workflows/` and executing the associated `tools/`.
+### 5) Supabase setup
+- Run schema SQL (choose your target schema file and stay consistent)
+- Create storage bucket (default: `post-images`)
+- Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
 
-## 🔄 The Self-Improvement Loop
+### 6) Optional persistent services
+- Start long-running bots/orchestrator with PM2 using provided config files.
 
-When the agent encounters unexpected errors (e.g., rate limits, LinkedIn UI changes):
-1. **Identify** the break point via error traces.
-2. **Refactor** the Python tool script.
-3. **Verify** the fix works.
-4. **Update** the Workflow (`.md`) to document the new constraint.
-This ensures the automation framework gets perpetually more resilient over time.
+---
+
+## Configuration
+
+The repository’s Python code reads the following env vars:
+
+### AI / LLM
+- `GROQ_API_KEY`, `GROQ_MODEL`
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `GEMINI_API_KEY`
+
+### LinkedIn
+- `LINKEDIN_ACCESS_TOKEN`
+- `LINKEDIN_REFRESH_TOKEN`
+- `LINKEDIN_CLIENT_ID`
+- `LINKEDIN_CLIENT_SECRET`
+- `LINKEDIN_PERSON_URN`
+
+### Supabase
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_IMAGE_BUCKET`
+
+### Google Sheets
+- `GOOGLE_SHEETS_SPREADSHEET_ID`
+- `GOOGLE_SERVICE_ACCOUNT_JSON`
+- `GOOGLE_SERVICE_ACCOUNT_JSON_PATH`
+- `SHEETS_TOPIC_BANK_TAB`
+- `SHEETS_CONTENT_BACKLOG_TAB`
+
+### Discord
+- `DISCORD_BOT_TOKEN`
+- `DISCORD_GHOSTWRITER_CHANNEL_ID`
+- `DISCORD_STORIES_CHANNEL_ID`
+- `DISCORD_READY_POSTS_CHANNEL_ID`
+- `DISCORD_COMMANDS_CHANNEL_ID`
+- `DISCORD_WEBHOOK_CONFIRMATIONS`
+- `DISCORD_WEBHOOK_NEEDS_ACTION`
+- `DISCORD_WEBHOOK_APPROVAL`
+- `DISCORD_WEBHOOK_LINKEDIN`
+- `DISCORD_WEBHOOK_ERRORS`
+- `DISCORD_WEBHOOK_BRIEFINGS`
+- `DISCORD_WEBHOOK_COMMANDS`
+- `DISCORD_WEBHOOK_READY_POSTS`
+- `DISCORD_LEADS_WEBHOOK_URL`
+- `DISCORD_LEAD_HUNTER_WEBHOOK_URL`
+- `DISCORD_DIGEST_WEBHOOK_URL`
+
+### Lead hunting / ops
+- `APIFY_API_TOKEN`
+- `VAULT_PATH`
+- `GIT_SYNC`
+
+---
+
+## Usage
+
+### Local script examples
+
+Generate weekly drafts:
+```bash
+python tools/generate_posts.py
+```
+
+Generate images for scheduled pending posts:
+```bash
+python tools/generate_images.py
+```
+
+Publish today’s approved post:
+```bash
+python tools/publish_post.py
+```
+
+Run comment triage manually:
+```bash
+python tools/triage_comments.py
+```
+
+Run lead hunter manually:
+```bash
+python tools/search_leads.py
+```
+
+Send weekly digest now:
+```bash
+python tools/weekly_digest.py
+```
+
+Run DM ghostwriter bot:
+```bash
+python tools/dm_ghostwriter.py
+```
+
+Run command watcher bot:
+```bash
+python watchers/discord_watcher.py
+```
+
+Orchestrator dry run:
+```bash
+python orchestrator.py --once --dry-run
+```
+
+### GitHub Actions workflows
+- `daily_publish.yml` — scheduled weekdays publish
+- `weekly_digest.yml` — scheduled weekly digest
+- `lead_hunter.yml` — scheduled lead search
+- `weekly_generation.yml` — currently manual (`workflow_dispatch`)
+- `comment_triage.yml` — currently manual (`workflow_dispatch`)
+- `deploy.yml` / `sync_secrets.yml` — deployment/ops
+
+---
+
+## Limitations, Safety, and Compliance
+
+- LinkedIn API access has platform restrictions (notably comments/analytics 403 without elevated program access in some cases).
+- Automating posting, scraping, or engagement can violate LinkedIn ToS depending on account/app permissions and usage patterns.
+- Use conservative rate limits, avoid spam behavior, and keep human approval in the loop for outbound actions.
+- You are responsible for compliance, account health, credential security, and regional/legal requirements.
+
+---
+
+## Validation Notes
+
+Current repository includes integration/smoke style scripts/docs (e.g., `INTEGRATION_TEST.md`) but does not include a formal pytest test suite in this clone.
