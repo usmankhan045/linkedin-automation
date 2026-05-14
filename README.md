@@ -70,7 +70,7 @@ This repository uses a **WAT-style split**:
     - B = content idea (append to Sheets backlog)
     - C = noise (logged only)
 - Operational safeguard:
-  - Handles LinkedIn comments API 403 (MDP restriction) with one-per-week warning gate using `config` table
+  - Handles LinkedIn comments API 403 (**Marketing Developer Platform (MDP)** restriction) with one-per-week warning gate using `config` table
 
 ### 7) Lead Hunting
 - `tools/search_leads.py`:
@@ -198,36 +198,36 @@ Primary entrypoints used in practice:
 
 ## Setup / Installation
 
-## 1) Clone and install
+### 1) Clone and install
 ```bash
 git clone https://github.com/usmankhan045/linkedin-automation.git
 cd linkedin-automation
 python -m pip install -r requirements.txt
 ```
 
-## 2) Playwright browser install (required for image rendering)
+### 2) Playwright browser install (required for image rendering)
 ```bash
 playwright install chromium --with-deps
 ```
 
-## 3) Configure environment
+### 3) Configure environment
 ```bash
 cp .env.example .env
 ```
 Populate required values (see Configuration section below).
 
-## 4) Google credentials
+### 4) Google credentials
 - Provide service account JSON via one of:
   - `GOOGLE_SERVICE_ACCOUNT_JSON` (raw JSON string; common in CI)
   - `GOOGLE_SERVICE_ACCOUNT_JSON_PATH` (path to local `credentials.json`)
 - Share the target sheet with the service account email.
 
-## 5) Supabase setup
+### 5) Supabase setup
 - Run schema SQL (choose your target schema file and stay consistent)
 - Create storage bucket (default: `post-images`)
 - Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
 
-## 6) Optional persistent services
+### 6) Optional persistent services
 - Start long-running bots/orchestrator with PM2 using provided config files.
 
 ---
