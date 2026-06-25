@@ -14,3 +14,4 @@ pytz>=2024.1
 playwright>=1.44.0
 python-frontmatter>=1.1.0
 google-genai>=1.0.0
+python-dateutil>=2.8.2
